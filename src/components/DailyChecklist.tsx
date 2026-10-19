@@ -50,7 +50,7 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
   const t = (key: Parameters<typeof getTranslation>[0]) => getTranslation(key, currentLang);
   const [selectedFilter, setSelectedFilter] = useState<string>('today');
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
-  const [hasCelebratedAllDone, setHasCelebratedAllDone] = React.useState(false);
+  const hasCelebratedAllDoneRef = React.useRef(false);
 
   const activeTasks = tasks.filter((taskItem) => !taskItem.archived);
 
@@ -102,13 +102,13 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
   const incompleteTasks = todayTasksList.filter((taskItem) => !taskItem.completedDates.includes(todayStr));
 
   React.useEffect(() => {
-    if (totalTasks > 0 && completedTodayCount === totalTasks && !hasCelebratedAllDone) {
+    if (totalTasks > 0 && completedTodayCount === totalTasks && !hasCelebratedAllDoneRef.current) {
       triggerCelebration(settings, { type: 'massive' });
-      setHasCelebratedAllDone(true);
+      hasCelebratedAllDoneRef.current = true;
     } else if (completedTodayCount < totalTasks) {
-      setHasCelebratedAllDone(false);
+      hasCelebratedAllDoneRef.current = false;
     }
-  }, [completedTodayCount, totalTasks, hasCelebratedAllDone, settings]);
+  }, [completedTodayCount, totalTasks, settings]);
 
   return (
     <div>

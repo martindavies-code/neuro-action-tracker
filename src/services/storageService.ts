@@ -18,15 +18,32 @@ export const getTodayDateString = (dateObj: Date = new Date()): string => {
 
 export const getDateMinusDays = (daysAgo: number, baseDateStr?: string): string => {
   let d = new Date();
-  if (baseDateStr) {
+  if (baseDateStr && typeof baseDateStr === 'string') {
     const parts = baseDateStr.split('-');
     if (parts.length === 3) {
-      d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0);
+      const year = Number(parts[0]);
+      const month = Number(parts[1]) - 1;
+      const day = Number(parts[2]);
+      if (
+        Number.isInteger(year) &&
+        Number.isInteger(month) &&
+        Number.isInteger(day) &&
+        month >= 0 &&
+        month <= 11 &&
+        day >= 1 &&
+        day <= 31
+      ) {
+        const candidate = new Date(year, month, day, 12, 0, 0);
+        if (!isNaN(candidate.getTime())) {
+          d = candidate;
+        }
+      }
     }
   } else {
     d.setHours(12, 0, 0, 0);
   }
-  d.setDate(d.getDate() - daysAgo);
+  const cleanDaysAgo = Number.isFinite(daysAgo) ? Math.floor(daysAgo) : 0;
+  d.setDate(d.getDate() - cleanDaysAgo);
   return getTodayDateString(d);
 };
 
@@ -35,7 +52,7 @@ export const getDateMinusDays = (daysAgo: number, baseDateStr?: string): string 
  * Accurately handles daily recurrence, custom days of week, and one-off lifecycle rules.
  */
 export function isTaskScheduledForToday(task: TaskItem, dateStr: string = getTodayDateString()): boolean {
-  if (task.archived) return false;
+  if (!task || typeof task !== 'object' || task.archived) return false;
 
   // 1. One-off task rule:
   if (task.isOneOff || task.recurrenceType === 'one-off') {
@@ -49,8 +66,16 @@ export function isTaskScheduledForToday(task: TaskItem, dateStr: string = getTod
   if (task.recurrenceType === 'custom_days' && Array.isArray(task.daysOfWeek) && task.daysOfWeek.length > 0) {
     try {
       const parts = dateStr.split('-');
-      const d = parts.length === 3 ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 12, 0, 0) : new Date();
-      return task.daysOfWeek.includes(d.getDay());
+      if (parts.length === 3) {
+        const year = Number(parts[0]);
+        const month = Number(parts[1]) - 1;
+        const day = Number(parts[2]);
+        const d = new Date(year, month, day, 12, 0, 0);
+        if (!isNaN(d.getTime())) {
+          return task.daysOfWeek.includes(d.getDay());
+        }
+      }
+      return true;
     } catch {
       return true;
     }
@@ -64,6 +89,7 @@ export function isTaskScheduledForToday(task: TaskItem, dateStr: string = getTod
  * Returns all active tasks scheduled for a given date.
  */
 export function getTodayTasks(tasks: TaskItem[], dateStr: string = getTodayDateString()): TaskItem[] {
+  if (!Array.isArray(tasks)) return [];
   return tasks.filter((t) => isTaskScheduledForToday(t, dateStr));
 }
 
@@ -71,6 +97,7 @@ export function getTodayTasks(tasks: TaskItem[], dateStr: string = getTodayDateS
  * Returns all incomplete tasks scheduled for a given date.
  */
 export function getTodayIncompleteTasks(tasks: TaskItem[], dateStr: string = getTodayDateString()): TaskItem[] {
+  if (!Array.isArray(tasks)) return [];
   return tasks.filter(
     (t) => isTaskScheduledForToday(t, dateStr) && !(Array.isArray(t.completedDates) && t.completedDates.includes(dateStr))
   );
@@ -231,15 +258,7 @@ export function loadTasks(): TaskItem[] {
     }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return DEFAULT_TASKS;
-    return parsed.map((t) => ({
-      ...t,
-      xpValue: Math.min(25, Math.max(5, Number(t.xpValue) || 15)),
-      completedDates: Array.isArray(t.completedDates) ? t.completedDates : [],
-      subTasks: Array.isArray(t.subTasks) ? t.subTasks : [],
-      recurrenceType: t.recurrenceType || (t.isOneOff ? 'one-off' : 'daily'),
-      daysOfWeek: Array.isArray(t.daysOfWeek) ? t.daysOfWeek : undefined,
-      isOneOff: Boolean(t.isOneOff || t.recurrenceType === 'one-off'),
-    }));
+    return parsed.map((t, idx) => sanitizeImportedTask(t, idx));
   } catch {
     return DEFAULT_TASKS;
   }
@@ -262,7 +281,7 @@ export function loadSettings(): SensorySettings {
       saveSettings(DEFAULT_SETTINGS);
       return DEFAULT_SETTINGS;
     }
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    return sanitizeImportedSettings(JSON.parse(raw));
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -285,7 +304,7 @@ export function loadStats(): UserStats {
       saveStats(DEFAULT_STATS);
       return DEFAULT_STATS;
     }
-    return { ...DEFAULT_STATS, ...JSON.parse(raw) };
+    return sanitizeImportedStats(JSON.parse(raw));
   } catch {
     return DEFAULT_STATS;
   }
@@ -308,7 +327,7 @@ export function loadBadges(): Badge[] {
       saveBadges(INITIAL_BADGES);
       return INITIAL_BADGES;
     }
-    return JSON.parse(raw);
+    return sanitizeImportedBadges(JSON.parse(raw));
   } catch {
     return INITIAL_BADGES;
   }
@@ -383,44 +402,152 @@ export function exportBackupJSON(): string {
   return JSON.stringify(data, null, 2);
 }
 
+export function sanitizeImportedTask(raw: unknown, idx: number = 0): TaskItem {
+  const t = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const cleanStr = (val: unknown, fallback: string, maxLen: number) =>
+    typeof val === 'string' ? val.trim().slice(0, maxLen) : fallback;
+  const cleanNum = (val: unknown, min: number, max: number, fallback: number) =>
+    typeof val === 'number' && Number.isFinite(val) ? Math.max(min, Math.min(max, Math.floor(val))) : fallback;
+
+  const validCategories = ['morning', 'afternoon', 'evening', 'anytime'] as const;
+  const validPriorities = ['low', 'medium', 'high'] as const;
+  const validRecurrences = ['daily', 'custom_days', 'one-off'] as const;
+
+  const sanitizedSubTasks: TaskItem['subTasks'] = Array.isArray(t.subTasks)
+    ? t.subTasks.slice(0, 50).map((st, sIdx) => {
+        const item = st && typeof st === 'object' ? (st as Record<string, unknown>) : {};
+        return {
+          id: cleanStr(item.id, `st_${idx}_${sIdx}_${Date.now()}`, 50),
+          title: cleanStr(item.title, 'Step', 200),
+          completed: Boolean(item.completed),
+        };
+      })
+    : [];
+
+  const sanitizedDates: string[] = Array.isArray(t.completedDates)
+    ? t.completedDates.filter((d): d is string => {
+        if (typeof d !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(d)) return false;
+        const [y, m, day] = d.split('-').map(Number);
+        const dt = new Date(y, m - 1, day, 12, 0, 0);
+        return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === day;
+      })
+    : [];
+
+  const rawRecurrence = t.recurrenceType || (t.isOneOff ? 'one-off' : 'daily');
+  const recurrenceType = validRecurrences.includes(rawRecurrence as any) ? (rawRecurrence as any) : 'daily';
+
+  const daysOfWeek = Array.isArray(t.daysOfWeek)
+    ? t.daysOfWeek.filter((day): day is number => Number.isInteger(day) && day >= 0 && day <= 6)
+    : undefined;
+
+  return {
+    id: cleanStr(t.id, `task_imp_${idx}_${Date.now()}`, 64),
+    title: cleanStr(t.title, 'Untitled Task', 200),
+    description: cleanStr(t.description, '', 2000),
+    category: validCategories.includes(t.category as any) ? (t.category as any) : 'morning',
+    priority: validPriorities.includes(t.priority as any) ? (t.priority as any) : 'medium',
+    xpValue: cleanNum(t.xpValue, 5, 25, 15),
+    estimatedMinutes: cleanNum(t.estimatedMinutes, 1, 1440, 5),
+    iconName: cleanStr(t.iconName, 'Sparkles', 50),
+    completedDates: sanitizedDates,
+    createdAt: typeof t.createdAt === 'string' ? t.createdAt.slice(0, 40) : new Date().toISOString(),
+    order: cleanNum(t.order, 0, 10000, idx + 1),
+    isDefault: Boolean(t.isDefault),
+    archived: Boolean(t.archived),
+    subTasks: sanitizedSubTasks,
+    recurrenceType,
+    daysOfWeek,
+    isOneOff: Boolean(t.isOneOff || recurrenceType === 'one-off'),
+  };
+}
+
+export function sanitizeImportedSettings(raw: unknown): SensorySettings {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return DEFAULT_SETTINGS;
+  const s = raw as Record<string, unknown>;
+  const validThemes = ['sage', 'sunset', 'slate', 'high-contrast'] as const;
+  const validLangs = ['auto', 'en', 'es', 'fr', 'de', 'ja', 'pt', 'zh', 'it', 'nl'] as const;
+  const validBatteries = ['full', 'half', 'empty'] as const;
+  const validCompanions = ['pip', 'mochi', 'nova', 'bubbles'] as const;
+
+  return {
+    language: validLangs.includes(s.language as any) ? (s.language as any) : DEFAULT_SETTINGS.language,
+    soundEnabled: typeof s.soundEnabled === 'boolean' ? s.soundEnabled : DEFAULT_SETTINGS.soundEnabled,
+    soundVolume:
+      typeof s.soundVolume === 'number' && Number.isFinite(s.soundVolume)
+        ? Math.max(0, Math.min(1, s.soundVolume))
+        : DEFAULT_SETTINGS.soundVolume,
+    soundPack: ['chimes', 'bamboo', 'cyber', 'lofi'].includes(s.soundPack as string)
+      ? (s.soundPack as any)
+      : DEFAULT_SETTINGS.soundPack,
+    reducedMotion: typeof s.reducedMotion === 'boolean' ? s.reducedMotion : DEFAULT_SETTINGS.reducedMotion,
+    dyslexicFont: typeof s.dyslexicFont === 'boolean' ? s.dyslexicFont : DEFAULT_SETTINGS.dyslexicFont,
+    bionicReading: typeof s.bionicReading === 'boolean' ? s.bionicReading : DEFAULT_SETTINGS.bionicReading,
+    readingRuler: typeof s.readingRuler === 'boolean' ? s.readingRuler : DEFAULT_SETTINGS.readingRuler,
+    theme: validThemes.includes(s.theme as any) ? (s.theme as any) : DEFAULT_SETTINGS.theme,
+    celebrationIntensity: ['gentle', 'normal', 'festive'].includes(s.celebrationIntensity as string)
+      ? (s.celebrationIntensity as any)
+      : DEFAULT_SETTINGS.celebrationIntensity,
+    compactView: typeof s.compactView === 'boolean' ? s.compactView : DEFAULT_SETTINGS.compactView,
+    showCompanion: typeof s.showCompanion === 'boolean' ? s.showCompanion : DEFAULT_SETTINGS.showCompanion,
+    companionChoice: validCompanions.includes(s.companionChoice as any)
+      ? (s.companionChoice as any)
+      : DEFAULT_SETTINGS.companionChoice,
+    energyBattery: validBatteries.includes(s.energyBattery as any)
+      ? (s.energyBattery as any)
+      : DEFAULT_SETTINGS.energyBattery,
+  };
+}
+
+export function sanitizeImportedStats(raw: unknown): UserStats {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return DEFAULT_STATS;
+  const s = raw as Record<string, unknown>;
+  const cleanNum = (val: unknown, min: number, max: number, def: number) =>
+    typeof val === 'number' && Number.isFinite(val) ? Math.max(min, Math.min(max, Math.floor(val))) : def;
+
+  return {
+    xp: cleanNum(s.xp, 0, 1000000, DEFAULT_STATS.xp),
+    level: cleanNum(s.level, 1, 99, DEFAULT_STATS.level),
+    levelTitle: typeof s.levelTitle === 'string' ? s.levelTitle.slice(0, 50) : DEFAULT_STATS.levelTitle,
+    currentStreak: cleanNum(s.currentStreak, 0, 3650, DEFAULT_STATS.currentStreak),
+    longestStreak: cleanNum(s.longestStreak, 0, 3650, DEFAULT_STATS.longestStreak),
+    streakShields: cleanNum(s.streakShields, 0, 10, DEFAULT_STATS.streakShields),
+    totalCompletions: cleanNum(s.totalCompletions, 0, 1000000, DEFAULT_STATS.totalCompletions),
+    lastActiveDate: typeof s.lastActiveDate === 'string' && s.lastActiveDate.length <= 20 ? s.lastActiveDate : '',
+    tutorialXpAwarded: typeof s.tutorialXpAwarded === 'boolean' ? s.tutorialXpAwarded : DEFAULT_STATS.tutorialXpAwarded,
+  };
+}
+
+export function sanitizeImportedBadges(raw: unknown): Badge[] {
+  if (!Array.isArray(raw)) return INITIAL_BADGES;
+  const importedMap = new Map(
+    raw
+      .filter((b: unknown): b is Badge => Boolean(b && typeof b === 'object' && 'id' in (b as Record<string, unknown>)))
+      .map((b: Badge) => [b.id, b])
+  );
+  return INITIAL_BADGES.map((initBadge) => {
+    const found = importedMap.get(initBadge.id);
+    return found ? { ...initBadge, unlockedAt: typeof found.unlockedAt === 'string' ? found.unlockedAt : null } : initBadge;
+  });
+}
+
 export function importBackupJSON(jsonStr: string): boolean {
   try {
+    if (!jsonStr || typeof jsonStr !== 'string') return false;
     const data = JSON.parse(jsonStr);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+
     if (data.tasks && Array.isArray(data.tasks)) {
-      const sanitizedTasks: TaskItem[] = data.tasks.map((t: Partial<TaskItem>, idx: number) => ({
-        id: t.id || `task_imp_${idx}_${Date.now()}`,
-        title: t.title || 'Untitled Task',
-        description: t.description || '',
-        category: t.category || 'morning',
-        priority: t.priority || 'medium',
-        xpValue: Math.min(25, Math.max(5, typeof t.xpValue === 'number' ? t.xpValue : 15)),
-        estimatedMinutes: typeof t.estimatedMinutes === 'number' ? t.estimatedMinutes : 5,
-        iconName: t.iconName || 'Sparkles',
-        completedDates: Array.isArray(t.completedDates) ? t.completedDates : [],
-        createdAt: t.createdAt || new Date().toISOString(),
-        order: typeof t.order === 'number' ? t.order : idx + 1,
-        isDefault: Boolean(t.isDefault),
-        archived: Boolean(t.archived),
-        subTasks: Array.isArray(t.subTasks) ? t.subTasks : [],
-        recurrenceType: t.recurrenceType || (t.isOneOff ? 'one-off' : 'daily'),
-        daysOfWeek: Array.isArray(t.daysOfWeek) ? t.daysOfWeek : undefined,
-        isOneOff: Boolean(t.isOneOff || t.recurrenceType === 'one-off'),
-      }));
+      const sanitizedTasks: TaskItem[] = data.tasks.map(sanitizeImportedTask);
       saveTasks(sanitizedTasks);
     }
-    if (data.settings && typeof data.settings === 'object') {
-      saveSettings({ ...DEFAULT_SETTINGS, ...data.settings });
+    if (data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)) {
+      saveSettings(sanitizeImportedSettings(data.settings));
     }
-    if (data.stats && typeof data.stats === 'object') {
-      saveStats({ ...DEFAULT_STATS, ...data.stats });
+    if (data.stats && typeof data.stats === 'object' && !Array.isArray(data.stats)) {
+      saveStats(sanitizeImportedStats(data.stats));
     }
     if (data.badges && Array.isArray(data.badges)) {
-      const importedMap = new Map(data.badges.map((b: Badge) => [b.id, b]));
-      const mergedBadges = INITIAL_BADGES.map((initBadge) => {
-        const found = importedMap.get(initBadge.id);
-        return found ? { ...initBadge, ...found } : initBadge;
-      });
-      saveBadges(mergedBadges);
+      saveBadges(sanitizeImportedBadges(data.badges));
     }
     return true;
   } catch (e) {

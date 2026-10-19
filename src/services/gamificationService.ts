@@ -164,9 +164,11 @@ export const INITIAL_BADGES: Badge[] = [
 ];
 
 export function getLevelInfo(xp: number) {
+  const safeXp = Number.isFinite(xp) ? Math.max(0, Math.floor(xp)) : 0;
+
   const current =
     LEVEL_THRESHOLDS.find(
-      (t, idx) => xp >= t.minXp && (xp < t.maxXp || idx === LEVEL_THRESHOLDS.length - 1)
+      (t, idx) => safeXp >= t.minXp && (safeXp < t.maxXp || idx === LEVEL_THRESHOLDS.length - 1)
     ) || LEVEL_THRESHOLDS[0];
 
   const level = current.level;
@@ -175,7 +177,7 @@ export function getLevelInfo(xp: number) {
   const maxXp = current.maxXp;
   const progressPercent = Math.min(
     100,
-    Math.max(0, Math.round(((xp - minXp) / Math.max(1, maxXp - minXp)) * 100))
+    Math.max(0, Math.round(((safeXp - minXp) / Math.max(1, maxXp - minXp)) * 100))
   );
 
   return {
@@ -183,23 +185,32 @@ export function getLevelInfo(xp: number) {
     levelTitle,
     minXp,
     maxXp,
-    xpInCurrentLevel: Math.max(0, xp - minXp),
+    xpInCurrentLevel: Math.max(0, safeXp - minXp),
     xpNeededForNext: maxXp - minXp,
     progressPercent,
   };
 }
 
 /**
- * Calculates current streak dynamically based on actual task completion history
+ * Calculates current streak dynamically based on actual task completion history.
+ * Highly optimized with Set-based O(1) date lookups.
  */
 export function calculateStreakFromTasks(tasks: TaskItem[], todayStr: string): number {
-  const activeTasks = tasks.filter((t) => !t.archived);
+  if (!Array.isArray(tasks) || tasks.length === 0) return 0;
+  const activeTasks = tasks.filter((t) => t && !t.archived);
   if (activeTasks.length === 0) return 0;
 
+  const completedDatesSet = new Set<string>();
+  for (const t of activeTasks) {
+    if (Array.isArray(t.completedDates)) {
+      for (const d of t.completedDates) {
+        if (typeof d === 'string') completedDatesSet.add(d);
+      }
+    }
+  }
+
   // Check if at least 1 task is completed today
-  const completedToday = activeTasks.some(
-    (t) => Array.isArray(t.completedDates) && t.completedDates.includes(todayStr)
-  );
+  const completedToday = completedDatesSet.has(todayStr);
 
   let streak = 0;
   let checkDayOffset = 0;
@@ -210,9 +221,7 @@ export function calculateStreakFromTasks(tasks: TaskItem[], todayStr: string): n
   } else {
     // Check if yesterday was completed
     const yesterdayStr = getDateMinusDays(1, todayStr);
-    const completedYesterday = activeTasks.some(
-      (t) => Array.isArray(t.completedDates) && t.completedDates.includes(yesterdayStr)
-    );
+    const completedYesterday = completedDatesSet.has(yesterdayStr);
     if (completedYesterday) {
       streak = 1;
       checkDayOffset = 2;
@@ -221,13 +230,10 @@ export function calculateStreakFromTasks(tasks: TaskItem[], todayStr: string): n
     }
   }
 
-  // Traverse consecutive days backwards
+  // Traverse consecutive days backwards up to 365 days
   while (checkDayOffset <= 365) {
     const pastDayStr = getDateMinusDays(checkDayOffset, todayStr);
-    const hadCompletion = activeTasks.some(
-      (t) => Array.isArray(t.completedDates) && t.completedDates.includes(pastDayStr)
-    );
-    if (hadCompletion) {
+    if (completedDatesSet.has(pastDayStr)) {
       streak += 1;
       checkDayOffset += 1;
     } else {
@@ -242,11 +248,18 @@ export function calculateDailyStreak(
   prevStats: UserStats,
   todayStr: string
 ): { updatedStats: UserStats; shieldUsed: boolean; usedShield: boolean } {
+  const safePrev: UserStats = {
+    ...prevStats,
+    currentStreak: Number.isFinite(prevStats?.currentStreak) ? Math.max(0, prevStats.currentStreak) : 0,
+    longestStreak: Number.isFinite(prevStats?.longestStreak) ? Math.max(0, prevStats.longestStreak) : 0,
+    streakShields: Number.isFinite(prevStats?.streakShields) ? Math.max(0, prevStats.streakShields) : 0,
+  };
+
   const yesterdayStr = getDateMinusDays(1, todayStr);
   const twoDaysAgoStr = getDateMinusDays(2, todayStr);
 
-  let currentStreak = prevStats.currentStreak;
-  let streakShields = prevStats.streakShields;
+  let currentStreak = safePrev.currentStreak;
+  let streakShields = safePrev.streakShields;
   let shieldUsed = false;
 
   if (!prevStats.lastActiveDate || prevStats.lastActiveDate === todayStr) {

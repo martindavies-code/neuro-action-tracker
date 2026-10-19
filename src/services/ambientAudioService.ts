@@ -11,6 +11,7 @@ class AmbientAudioService {
   private masterGain: GainNode | null = null;
   private activeNodes: AudioNode[] = [];
   private intervalId: ReturnType<typeof setInterval> | null = null;
+  private cleanupTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private volume: number = 0.35;
   private listeners: Set<AmbientAudioListener> = new Set();
 
@@ -57,7 +58,7 @@ class AmbientAudioService {
   }
 
   public setVolume(vol: number) {
-    this.volume = Math.max(0, Math.min(1, vol));
+    this.volume = Number.isFinite(vol) ? Math.max(0, Math.min(1, vol)) : 0.35;
     if (this.masterGain && this.ctx) {
       const now = this.ctx.currentTime;
       const target = Math.max(0.0001, this.volume * 0.25);
@@ -81,6 +82,10 @@ class AmbientAudioService {
       clearInterval(this.intervalId);
       this.intervalId = null;
     }
+    if (this.cleanupTimeoutId) {
+      clearTimeout(this.cleanupTimeoutId);
+      this.cleanupTimeoutId = null;
+    }
 
     const currentGainNode = this.masterGain;
     if (currentGainNode && this.ctx) {
@@ -102,7 +107,7 @@ class AmbientAudioService {
     this.notify();
 
     // Clean up audio nodes after gentle fade-out completes
-    setTimeout(() => {
+    this.cleanupTimeoutId = setTimeout(() => {
       nodesToClean.forEach((node) => {
         try {
           if ('stop' in node && typeof (node as AudioScheduledSourceNode).stop === 'function') {
@@ -120,6 +125,7 @@ class AmbientAudioService {
           // Ignore
         }
       }
+      this.cleanupTimeoutId = null;
     }, 650);
   }
 

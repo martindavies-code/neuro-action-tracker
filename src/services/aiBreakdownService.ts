@@ -382,6 +382,17 @@ const NEURO_BREAKDOWN_TEMPLATES: TemplateRule[] = [
   },
 ];
 
+const REGEX_CACHE = new Map<string, RegExp>();
+function getWordBoundaryRegex(kw: string): RegExp {
+  let cached = REGEX_CACHE.get(kw);
+  if (!cached) {
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    cached = new RegExp(`\\b${escaped}\\b`, 'i');
+    REGEX_CACHE.set(kw, cached);
+  }
+  return cached;
+}
+
 /**
  * Generates 3-5 gentle, neuro-affirming micro-steps specifically tailored to the given task.
  * Uses weighted semantic phrase matching so task titles have top priority over generic description words.
@@ -405,8 +416,7 @@ export async function generateMagicSubTasks(taskTitle: string, taskDescription?:
 
     // B. Check Secondary Keywords in Title (Weight: 8 points)
     for (const kw of template.secondaryKeywords) {
-      // Whole word / boundary matching
-      const regex = new RegExp(`\\b${kw}\\b`, 'i');
+      const regex = getWordBoundaryRegex(kw);
       if (regex.test(cleanTitle)) {
         score += 8;
       } else if (cleanTitle.includes(kw)) {
@@ -417,7 +427,7 @@ export async function generateMagicSubTasks(taskTitle: string, taskDescription?:
     // C. Check Secondary Keywords in Description (Weight: 2 points)
     if (cleanDesc) {
       for (const kw of template.secondaryKeywords) {
-        const regex = new RegExp(`\\b${kw}\\b`, 'i');
+        const regex = getWordBoundaryRegex(kw);
         if (regex.test(cleanDesc)) {
           score += 2;
         }
@@ -474,7 +484,13 @@ export function calculateTaskDifficultyAndXP(
   priority: 'low' | 'medium' | 'high' = 'medium',
   subTaskCount: number = 0
 ): TaskDifficultyAssessment {
-  const text = `${title} ${description}`.toLowerCase();
+  const safeTitle = typeof title === 'string' ? title.slice(0, 300) : '';
+  const safeDesc = typeof description === 'string' ? description.slice(0, 2000) : '';
+  const safeMinutes = Number.isFinite(estimatedMinutes) ? Math.max(1, Math.min(1440, Math.floor(estimatedMinutes))) : 5;
+  const safePriority = ['low', 'medium', 'high'].includes(priority) ? priority : 'medium';
+  const safeSubTaskCount = Number.isFinite(subTaskCount) ? Math.max(0, Math.floor(subTaskCount)) : 0;
+
+  const text = `${safeTitle} ${safeDesc}`.toLowerCase();
 
   // 1. High activation barrier / social friction / bureaucracy triggers
   const highFrictionPatterns = [
@@ -510,38 +526,38 @@ export function calculateTaskDifficultyAndXP(
   } else if (isPhysicalFriction) {
     baseScore = 18;
     reasons.push('Physical & sensory energy demand');
-  } else if (isMicroWin && estimatedMinutes <= 3) {
+  } else if (isMicroWin && safeMinutes <= 3) {
     baseScore = 5;
     reasons.push('Instant dopamine micro-win');
-  } else if (isModerate && estimatedMinutes <= 10) {
+  } else if (isModerate && safeMinutes <= 10) {
     baseScore = 10;
     reasons.push('Daily routine maintenance');
   }
 
   // Duration modifier
-  if (estimatedMinutes >= 30) {
+  if (safeMinutes >= 30) {
     baseScore += 5;
     reasons.push('30+ min sustained focus');
-  } else if (estimatedMinutes >= 15 && baseScore < 20) {
+  } else if (safeMinutes >= 15 && baseScore < 20) {
     baseScore += 3;
     reasons.push('15+ min time commitment');
-  } else if (estimatedMinutes <= 2 && baseScore > 10) {
+  } else if (safeMinutes <= 2 && baseScore > 10) {
     baseScore -= 5;
   }
 
   // Priority modifier
-  if (priority === 'high') {
+  if (safePriority === 'high') {
     baseScore += 3;
     reasons.push('High priority focus');
-  } else if (priority === 'low' && baseScore > 10) {
+  } else if (safePriority === 'low' && baseScore > 10) {
     baseScore -= 2;
   }
 
   // Sub-task complexity modifier
-  if (subTaskCount >= 4) {
+  if (safeSubTaskCount >= 4) {
     baseScore += 3;
-    reasons.push(`${subTaskCount} structured steps`);
-  } else if (subTaskCount >= 2 && baseScore < 20) {
+    reasons.push(`${safeSubTaskCount} structured steps`);
+  } else if (safeSubTaskCount >= 2 && baseScore < 20) {
     baseScore += 2;
   }
 

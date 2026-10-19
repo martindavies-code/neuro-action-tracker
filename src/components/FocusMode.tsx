@@ -34,14 +34,7 @@ export const FocusMode: React.FC<FocusModeProps> = ({
   const [newSubTaskTitle, setNewSubTaskTitle] = useState('');
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
-  // Sync state whenever active focus task changes
-  useEffect(() => {
-    const secs = (task.estimatedMinutes || 5) * 60;
-    setTotalSeconds(secs);
-    setTimeLeft(secs);
-    setIsRunning(false);
-    setNewSubTaskTitle('');
-  }, [task.id, task.estimatedMinutes]);
+
 
   const subTasks = task.subTasks || [];
 

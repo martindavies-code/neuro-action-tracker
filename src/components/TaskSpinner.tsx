@@ -43,23 +43,15 @@ export const TaskSpinner: React.FC<TaskSpinnerProps> = ({
     return getTodayIncompleteTasks(tasks, todayStr);
   }, [tasks, todayStr]);
 
-  // Cleanup on unmount or isOpen close
+  // Cleanup interval on unmount
   React.useEffect(() => {
-    if (!isOpen) {
-      if (spinIntervalRef.current) {
-        clearInterval(spinIntervalRef.current);
-        spinIntervalRef.current = null;
-      }
-      setIsSpinning(false);
-      setSelectedTask(null);
-    }
     return () => {
       if (spinIntervalRef.current) {
         clearInterval(spinIntervalRef.current);
         spinIntervalRef.current = null;
       }
     };
-  }, [isOpen]);
+  }, []);
 
   const handleSpin = () => {
     if (incompleteTasks.length === 0 || isSpinning) return;

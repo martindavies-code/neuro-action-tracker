@@ -22,7 +22,7 @@ class SoundService {
 
   public updateSettings(soundEnabled: boolean, volume: number) {
     this.isMuted = !soundEnabled;
-    this.volume = Math.max(0, Math.min(1, volume));
+    this.volume = typeof volume === 'number' && Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0.5;
   }
 
   public playCheck() {

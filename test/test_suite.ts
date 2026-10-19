@@ -9,6 +9,10 @@ import {
   DEFAULT_SETTINGS,
   DEFAULT_STATS,
   importBackupJSON,
+  sanitizeImportedTask,
+  sanitizeImportedSettings,
+  sanitizeImportedStats,
+  sanitizeImportedBadges,
 } from '../src/services/storageService.ts';
 import {
   getLevelInfo,
@@ -23,6 +27,8 @@ import { generateMagicSubTasks, calculateTaskDifficultyAndXP } from '../src/serv
 import { TRANSLATIONS, resolveActiveLanguage } from '../src/services/i18nService.ts';
 import { ambientAudio } from '../src/services/ambientAudioService.ts';
 import { speechService } from '../src/services/speechService.ts';
+import { sound } from '../src/services/soundService.ts';
+import { getIconComponent } from '../src/utils/iconMap.ts';
 import { isFirebaseConfigured } from '../src/services/firebase.ts';
 import type { TaskItem, UserStats, Badge, CompanionChoice } from '../src/types.ts';
 
@@ -374,6 +380,7 @@ describe('10. Speech Completion & Callback Lifecycle', () => {
     });
     speechService.stop();
     assert.strictEqual(speechService.isSpeaking, false);
+    assert.strictEqual(ended, true);
   });
 });
 
@@ -507,6 +514,260 @@ describe('15. Focus Mode Invariants & Timezone-Safe Date Math', () => {
     assert.strictEqual(isTaskScheduledForToday(thursdayTask, '2026-09-03'), true); // Thursday
     assert.strictEqual(isTaskScheduledForToday(thursdayTask, '2026-09-04'), false); // Friday
     assert.strictEqual(isTaskScheduledForToday(thursdayTask, '2026-09-02'), false); // Wednesday
+  });
+});
+
+describe('16. Security & Sanitisation - Prototype Pollution & Injection Defense', () => {
+  it('protects against prototype pollution in sanitizeImportedTask', () => {
+    const maliciousTask = JSON.parse(
+      '{"__proto__": {"polluted": true}, "constructor": {"prototype": {"admin": true}}, "title": "Injected Task", "xpValue": 15}'
+    );
+    const sanitized = sanitizeImportedTask(maliciousTask);
+    assert.strictEqual(sanitized.title, 'Injected Task');
+    assert.strictEqual((Object.prototype as any).polluted, undefined);
+    assert.strictEqual((Object.prototype as any).admin, undefined);
+  });
+
+  it('safely handles null, undefined, and non-object inputs in sanitizeImportedTask', () => {
+    const nullResult = sanitizeImportedTask(null as any);
+    assert.ok(nullResult && typeof nullResult === 'object');
+    assert.strictEqual(nullResult.title, 'Untitled Task');
+    assert.strictEqual(nullResult.xpValue, 15);
+
+    const undefinedResult = sanitizeImportedTask(undefined as any);
+    assert.strictEqual(undefinedResult.title, 'Untitled Task');
+
+    const numberResult = sanitizeImportedTask(12345 as any);
+    assert.strictEqual(numberResult.title, 'Untitled Task');
+  });
+
+  it('bounds and truncates excessive string lengths (DoS prevention)', () => {
+    const hugeString = 'A'.repeat(5000);
+    const task = sanitizeImportedTask({
+      title: hugeString,
+      description: hugeString,
+      id: hugeString,
+    });
+    assert.strictEqual(task.title.length, 200);
+    assert.strictEqual(task.description.length, 2000);
+    assert.strictEqual(task.id.length, 64);
+  });
+
+  it('clamps numeric XP and estimated minutes out of bounds (NaN, Infinity, negatives)', () => {
+    const taskWithBadNumbers = sanitizeImportedTask({
+      xpValue: NaN,
+      estimatedMinutes: Infinity,
+    });
+    assert.strictEqual(taskWithBadNumbers.xpValue, 15);
+    assert.strictEqual(taskWithBadNumbers.estimatedMinutes, 5);
+
+    const taskWithNegativeNumbers = sanitizeImportedTask({
+      xpValue: -999,
+      estimatedMinutes: -50,
+    });
+    assert.strictEqual(taskWithNegativeNumbers.xpValue, 5); // Clamped to min 5
+    assert.strictEqual(taskWithNegativeNumbers.estimatedMinutes, 1); // Clamped to min 1
+  });
+
+  it('filters corrupted or malicious date injection in completedDates', () => {
+    const task = sanitizeImportedTask({
+      completedDates: ['2026-08-30', '<script>alert(1)</script>', '2026-99-99', null, 12345, 'invalid'] as any,
+    });
+    assert.deepStrictEqual(task.completedDates, ['2026-08-30']);
+  });
+
+  it('caps subtasks at 50 and sanitizes subtask items against non-objects', () => {
+    const subtasks = Array.from({ length: 100 }, (_, i) =>
+      i === 0 ? null : { id: `st_${i}`, title: `Step ${i}`, completed: true }
+    );
+    const task = sanitizeImportedTask({ subTasks: subtasks as any });
+    assert.strictEqual(task.subTasks.length, 50);
+    assert.strictEqual(task.subTasks[0].title, 'Step');
+    assert.strictEqual(task.subTasks[1].title, 'Step 1');
+  });
+
+  it('protects against prototype pollution in sanitizeImportedSettings', () => {
+    const maliciousSettings = Object.assign(
+      Object.create(null),
+      { theme: 'hack_theme', soundVolume: NaN, language: 'malicious' }
+    );
+    (maliciousSettings as any).__proto__ = { injected: 'dangerous' };
+
+    const cleanSettings = sanitizeImportedSettings(maliciousSettings);
+    assert.strictEqual((Object.prototype as any).injected, undefined);
+    assert.strictEqual(cleanSettings.theme, DEFAULT_SETTINGS.theme);
+    assert.strictEqual(cleanSettings.language, DEFAULT_SETTINGS.language);
+    assert.strictEqual(cleanSettings.soundVolume, DEFAULT_SETTINGS.soundVolume);
+  });
+
+  it('protects against negative and NaN stats in sanitizeImportedStats', () => {
+    const maliciousStats = {
+      xp: -100,
+      currentStreak: NaN,
+      longestStreak: Infinity,
+      streakShields: -5,
+    };
+    const cleanStats = sanitizeImportedStats(maliciousStats);
+    assert.strictEqual(cleanStats.xp, DEFAULT_STATS.xp);
+    assert.strictEqual(cleanStats.currentStreak, DEFAULT_STATS.currentStreak);
+    assert.strictEqual(cleanStats.streakShields, 0); // Negative shields clamped to 0
+  });
+
+  it('sanitizes imported badges and discards non-matching IDs', () => {
+    const rawBadges = [
+      { id: 'first_step', unlockedAt: '2026-08-30T10:00:00.000Z' },
+      { id: 'fake_exploit_badge', unlockedAt: '2026-08-30' },
+      null,
+      'invalid',
+    ];
+    const badges = sanitizeImportedBadges(rawBadges);
+    assert.strictEqual(badges.length, INITIAL_BADGES.length);
+    const firstStep = badges.find((b) => b.id === 'first_step');
+    assert.strictEqual(firstStep?.unlockedAt, '2026-08-30T10:00:00.000Z');
+    assert.strictEqual(badges.some((b) => b.id === 'fake_exploit_badge'), false);
+  });
+});
+
+describe('17. IconRenderer Defense & Safe Prototype Resolution', () => {
+  it('prevents prototype pollution crash on special property names', () => {
+    // Calling "constructor", "toString", "__proto__", "valueOf" must NOT return Object/Function
+    const constructorIcon = getIconComponent('constructor');
+    assert.notStrictEqual(constructorIcon, Object.prototype.constructor);
+
+    const toStringIcon = getIconComponent('toString');
+    assert.notStrictEqual(toStringIcon, Object.prototype.toString);
+
+    const protoIcon = getIconComponent('__proto__');
+    assert.notStrictEqual(protoIcon, Object.prototype);
+  });
+
+  it('returns valid Lucide components for known icon names and falls back for unknown', () => {
+    const sparkles = getIconComponent('Sparkles');
+    assert.ok(sparkles && typeof sparkles === 'object');
+
+    const unknown = getIconComponent('NonExistentIcon');
+    assert.ok(unknown && typeof unknown === 'object');
+
+    const empty = getIconComponent('');
+    assert.ok(empty && typeof empty === 'object');
+  });
+});
+
+describe('18. Web Audio & Synthesizer Input Resilience', () => {
+  it('safely clamps volume in soundService against NaN and infinities', () => {
+    sound.updateSettings(true, NaN);
+    // Shouldn't throw and volume should be safe
+    sound.updateSettings(true, -10);
+    sound.updateSettings(true, 100);
+    sound.updateSettings(false, 0.5);
+    // Verify no throw on play
+    sound.playCheck();
+    sound.playPop();
+    sound.playLevelUp();
+    sound.playBadge();
+  });
+
+  it('clamps ambientAudio volume safely against NaN, negative, and infinite values', () => {
+    ambientAudio.setVolume(NaN);
+    assert.strictEqual(ambientAudio.getVolume(), 0.35);
+
+    ambientAudio.setVolume(-5);
+    assert.strictEqual(ambientAudio.getVolume(), 0);
+
+    ambientAudio.setVolume(10);
+    assert.strictEqual(ambientAudio.getVolume(), 1);
+
+    ambientAudio.setVolume(Infinity);
+    assert.strictEqual(ambientAudio.getVolume(), 0.35);
+  });
+
+  it('handles rapid audio start/stop cycles without uncaught promise or timeout leaks', () => {
+    ambientAudio.play('rain');
+    ambientAudio.play('waves');
+    ambientAudio.stop();
+    assert.strictEqual(ambientAudio.getActiveSoundscape(), 'none');
+  });
+});
+
+describe('19. Speech Synthesis Watchdog & Input Boundary Defense', () => {
+  it('immediately fires onEnd when text is empty, whitespace, or invalid', () => {
+    let endedCount = 0;
+    speechService.speak('', 'en', () => { endedCount++; });
+    assert.strictEqual(endedCount, 1);
+
+    speechService.speak('   ', 'en', () => { endedCount++; });
+    assert.strictEqual(endedCount, 2);
+
+    speechService.speak(null as any, 'en', () => { endedCount++; });
+    assert.strictEqual(endedCount, 3);
+  });
+
+  it('safely bounds speech rate against NaN and extreme values', () => {
+    speechService.setRate(NaN);
+    speechService.setRate(-5);
+    speechService.setRate(10);
+  });
+});
+
+describe('20. Performance & Algorithmic Scalability', () => {
+  it('calculates 365-day streak in under 10ms using O(1) Set lookups', () => {
+    const today = '2026-10-19';
+    // Generate 365 consecutive completion dates
+    const completedDates: string[] = [];
+    for (let i = 0; i < 365; i++) {
+      completedDates.push(getDateMinusDays(i, today));
+    }
+
+    const yearTask: TaskItem = {
+      ...DEFAULT_TASKS[0],
+      completedDates,
+    };
+
+    const startTime = performance.now();
+    const streak = calculateStreakFromTasks([yearTask], today);
+    const durationMs = performance.now() - startTime;
+
+    assert.strictEqual(streak, 365);
+    assert.ok(durationMs < 10, `Streak calculation took ${durationMs}ms, should be < 10ms`);
+  });
+
+  it('handles malformed date strings in getDateMinusDays safely', () => {
+    // Malformed strings must fallback safely to today without throwing
+    const malformed1 = getDateMinusDays(1, '2026-99-99');
+    assert.ok(typeof malformed1 === 'string' && malformed1.length === 10);
+
+    const malformed2 = getDateMinusDays(1, 'invalid-date');
+    assert.ok(typeof malformed2 === 'string' && malformed2.length === 10);
+
+    const malformed3 = getDateMinusDays(1, '');
+    assert.ok(typeof malformed3 === 'string' && malformed3.length === 10);
+
+    // Non-finite daysAgo
+    const fallbackDays = getDateMinusDays(NaN, '2026-08-30');
+    assert.strictEqual(fallbackDays, '2026-08-30');
+  });
+
+  it('guarantees getLevelInfo never returns NaN% progress under extreme values', () => {
+    const extremeXPs = [-1000, 0, 50, 100, 999999, NaN, Infinity, -Infinity];
+    extremeXPs.forEach((xp) => {
+      const info = getLevelInfo(xp);
+      assert.ok(Number.isFinite(info.level), `Level must be finite for xp=${xp}`);
+      assert.ok(Number.isFinite(info.progressPercent), `Progress must be finite for xp=${xp}`);
+      assert.ok(info.progressPercent >= 0 && info.progressPercent <= 100);
+      assert.ok(!Number.isNaN(info.progressPercent));
+    });
+  });
+
+  it('guarantees calculateTaskDifficultyAndXP handles unexpected or malicious inputs safely', () => {
+    const res1 = calculateTaskDifficultyAndXP(null as any, null as any, NaN, null as any, NaN);
+    assert.ok(Number.isFinite(res1.xp));
+    assert.ok(res1.xp >= 5 && res1.xp <= 25);
+    assert.ok(typeof res1.tier === 'string');
+
+    const hugeText = 'call '.repeat(1000);
+    const res2 = calculateTaskDifficultyAndXP(hugeText, hugeText, -999, 'high', 100);
+    assert.ok(Number.isFinite(res2.xp));
+    assert.ok(res2.xp >= 5 && res2.xp <= 25);
   });
 });
 
