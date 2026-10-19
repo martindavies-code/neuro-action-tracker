@@ -1,0 +1,25 @@
+{
+  "name": "RhythmQuest — Neurodivergent Action Tracker",
+  "short_name": "RhythmQuest",
+  "description": "Gentle, sensory-accessible daily routine tracker with shame-free streak shields, visual timers, and AI task breakdown.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2d7a58",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "health", "lifestyle"]
+}
