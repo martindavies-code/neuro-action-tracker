@@ -52,19 +52,19 @@ Traditional task managers often induce guilt, executive paralysis, and shame spi
 6. **💾 Total Data Sovereignty & Offline Independence**:
    - Works immediately offline via HTML5 LocalStorage and Service Workers.
    - Instant JSON Backup export and restore with schema sanitization.
-   - Optional Firebase Cloud Sync for cross-device authentication and cloud backup.
+   - Complete client-side operation with zero external hosting dependencies.
 
 ---
 
 ## 🧪 Automated Testing Suite
 
-RhythmQuest includes a comprehensive 15-suite test runner testing scheduling, gamification math, AI decomposition, and accessibility invariants:
+RhythmQuest includes a comprehensive 20-suite, 51-test runner verifying scheduling, gamification math, AI decomposition, security sanitization, and accessibility invariants:
 
 ```bash
 npm test
 ```
 
-### Verified Test Suites:
+### Verified Test Suites (51/51 Passing):
 - `1. Task Scheduling & Lifecycle Engine` (daily, one-off, and custom recurrence)
 - `2. Gamification & Streak Shield Mechanics` (momentum protection & boundary logic)
 - `3. AI Micro-Task Breakdown Service` (phrase matching & structured decomposition)
@@ -80,45 +80,21 @@ npm test
 - `13. Companion Mascot Evolution Consistency`
 - `14. Magic Wand Clean Icon Parity across All Languages`
 - `15. Focus Mode Invariants & Timezone-Safe Date Math`
+- `16. Security & Sanitisation - Prototype Pollution & Injection Defense`
+- `17. IconRenderer Defense & Safe Prototype Resolution`
+- `18. Web Audio & Synthesizer Input Resilience`
+- `19. Speech Synthesis Watchdog & Input Boundary Defense`
+- `20. Performance & Algorithmic Scalability`
 
 ---
 
-## 🛠️ Local Development
+## 🚀 Official Deployment: GitHub Pages
 
-### Prerequisites
-- Node.js >= 20.x
-- npm >= 10.x
+The application is deployed directly to **GitHub Pages** as the single authoritative production version:
 
-### Setup & Run
-```bash
-# Clone the repository
-git clone https://github.com/martindavies-code/neuro-action-tracker.git
-cd neuro-action-tracker
-
-# Install dependencies
-npm install
-
-# Start local Vite development server
-npm run dev
-
-# Run automated tests
-npm test
-
-# Build production bundle
-npm run build
-
-# Preview production build locally
-npm run preview
-```
-
----
-
-## 🚀 Continuous Deployment
-
-The repository is configured with a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically:
-1. Runs tests on every push to `main`.
-2. Compiles TypeScript and builds the optimized Vite bundle with relative paths (`./`).
-3. Deploys directly to **GitHub Pages** (`gh-pages` branch).
+- **Live URL**: [https://martindavies-code.github.io/neuro-action-tracker/](https://martindavies-code.github.io/neuro-action-tracker/)
+- **Automated Pipeline**: Every commit pushed to `main` triggers GitHub Actions to run the full test suite, compile the optimized bundle, and deploy to `gh-pages`.
+- **Zero Local Setup Needed**: Open the link in any mobile or desktop browser to use the full application immediately.
 
 ---
 

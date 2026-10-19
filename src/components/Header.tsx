@@ -82,19 +82,16 @@ export const Header: React.FC<HeaderProps> = ({
             className="save-progress-btn"
             onClick={onOpenAuthModal}
             id="header-save-progress-btn"
-            title={currentUser ? `Signed in as ${currentUser.email} • Progress saved to cloud` : 'Click to save your progress online across all your devices'}
+            title={
+              currentUser
+                ? `Signed in as ${currentUser.email} • Cloud backup active`
+                : 'Progress is automatically saved in your browser! Click to manage data & backups'
+            }
           >
-            {currentUser ? (
-              <>
-                <span className="save-dot active" />
-                <span className="save-text">{t('sync_cloud')}</span>
-              </>
-            ) : (
-              <>
-                <span className="save-icon">☁️</span>
-                <span className="save-text">{t('sign_in')}</span>
-              </>
-            )}
+            <span className="save-dot active" />
+            <span className="save-text">
+              {currentUser ? t('sync_cloud') : t('sync_offline')}
+            </span>
           </button>
         </div>
       </div>

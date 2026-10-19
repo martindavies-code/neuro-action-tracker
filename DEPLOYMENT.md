@@ -1,43 +1,26 @@
-# Deploying RhythmQuest to GitHub Pages 🚀
+# Official Deployment: GitHub Pages 🚀
 
-RhythmQuest is configured to automatically build and deploy directly to **GitHub Pages** via GitHub Actions on every push to the `main` branch.
+The single, authoritative, and official production version of **RhythmQuest** is hosted directly on **GitHub Pages**:
 
-Live URL: **[https://martindavies-code.github.io/neuro-action-tracker/](https://martindavies-code.github.io/neuro-action-tracker/)**
-
----
-
-## 1. Automated GitHub Pages CI/CD
-
-Whenever changes are pushed to `main`:
-1. The `.github/workflows/deploy.yml` workflow triggers.
-2. It sets up Node.js 22 and runs `npm ci`.
-3. It runs the full automated test suite (`npm test`).
-4. It compiles TypeScript and runs `npm run build` using Vite with relative base asset paths (`base: './'`).
-5. It deploys the resulting `dist/` directory directly to the `gh-pages` branch using `peaceiris/actions-gh-pages@v4`.
-6. GitHub Pages serves the live application at `https://martindavies-code.github.io/neuro-action-tracker/`.
+🔗 **Live Application**: [https://martindavies-code.github.io/neuro-action-tracker/](https://martindavies-code.github.io/neuro-action-tracker/)  
+📦 **GitHub Repository**: [https://github.com/martindavies-code/neuro-action-tracker](https://github.com/martindavies-code/neuro-action-tracker)
 
 ---
 
-## 2. Optional: Connecting Firebase Cloud Sync
+## Single Source of Truth: Automated GitHub CI/CD
 
-RhythmQuest runs **100% offline out-of-the-box** using browser LocalStorage and Service Workers.
+All hosting, bundling, testing, and continuous deployment are managed 100% through GitHub:
 
-If you want cross-device cloud sync with Google Sign-In and Firestore:
-1. Go to [Firebase Console](https://console.firebase.google.com/) and open your project.
-2. In **Authentication > Settings > Authorized Domains**, ensure:
-   - `localhost`
-   - `martindavies-code.github.io`
-   are listed as authorized domains.
-3. In the app, click the **☁️ Sign In / Cloud** button in the header, expand **⚙️ Cloud Project Settings & Local Mode**, and verify or customize your Firebase project credentials.
-4. (Optional) You can also add repository secrets in GitHub (`Settings > Secrets and variables > Actions`) for `VITE_FIREBASE_API_KEY`, etc. if you prefer injecting custom keys at build time.
+1. **Push to `main`**: Any commit pushed to the `main` branch automatically triggers the GitHub Actions workflow ([`.github/workflows/deploy.yml`](file:///.github/workflows/deploy.yml)).
+2. **Automated Verification**: GitHub Actions runs the complete test runner (`npm test`) to guarantee zero regressions.
+3. **Production Compilation**: Vite compiles TypeScript and packages optimized static assets with relative path resolution (`base: './'`).
+4. **Instant Deployment**: The build artifacts are deployed automatically to the `gh-pages` branch.
+5. **Live Within Seconds**: GitHub Pages immediately serves the updated release at [https://martindavies-code.github.io/neuro-action-tracker/](https://martindavies-code.github.io/neuro-action-tracker/).
 
 ---
 
-## 3. Local Verification
+## Zero External Hosting Dependencies
 
-To test the exact production build locally:
-```bash
-npm run build
-npm run preview
-```
-Open `http://localhost:4173/` to inspect the built bundle.
+- **No Firebase Hosting**: Firebase hosting configurations have been completely removed. GitHub Pages is the sole host.
+- **No Local Server Required**: You do not need to run `localhost:5173` or a local Node.js process to use the application. Simply open the GitHub Pages link on any phone, tablet, or desktop browser.
+- **Client-Side Sovereignty**: All tasks, streaks, audio soundscapes, AI breakdown features, and mascot evolutions run directly in the browser and persist via HTML5 LocalStorage and downloadable JSON backups.
