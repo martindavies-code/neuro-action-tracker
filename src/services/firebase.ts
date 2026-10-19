@@ -20,17 +20,17 @@ import {
 } from 'firebase/firestore';
 import type { Firestore } from 'firebase/firestore';
 
-// Default production client credentials (public identifiers for client-side connection)
+// Default client configuration placeholder - real credentials must come from environment variables or custom config
 const DEFAULT_CLIENT_CONFIG = {
-  apiKey: "AIzaSyCCRVASy5E_bgA8bYNGUFC5nWLfeELAAoI",
-  authDomain: "rhythm-quest-cf3d8.firebaseapp.com",
-  projectId: "rhythm-quest-cf3d8",
-  storageBucket: "rhythm-quest-cf3d8.firebasestorage.app",
-  messagingSenderId: "847875940872",
-  appId: "1:847875940872:web:5dceb4363b9743330227bd",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
 };
 
-// Default config can be read from custom local storage, environment variables, or default fallback
+// Default config can be read from custom local storage, environment variables, or returns null
 export const getFirebaseConfig = () => {
   // 1. Check if user entered custom credentials in app
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -49,7 +49,7 @@ export const getFirebaseConfig = () => {
 
   // 2. Check environment variables
   const envKey = import.meta.env.VITE_FIREBASE_API_KEY;
-  if (envKey && envKey !== 'YOUR_API_KEY') {
+  if (envKey && envKey !== 'YOUR_API_KEY' && !envKey.includes('your-api-key')) {
     return {
       apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
       authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || DEFAULT_CLIENT_CONFIG.authDomain,
@@ -60,8 +60,8 @@ export const getFirebaseConfig = () => {
     };
   }
 
-  // 3. Fallback to client config for GitHub Pages deployment
-  return DEFAULT_CLIENT_CONFIG;
+  // 3. Fallback: No credentials configured (app runs 100% standalone via browser storage)
+  return null;
 };
 
 export const saveCustomFirebaseConfig = (config: Record<string, string>): boolean => {
