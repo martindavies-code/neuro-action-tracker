@@ -6,7 +6,6 @@ export function useUIState() {
   const [activeTab, setActiveTab] = useState<ViewTab>('today');
   
   // Modals & Power Tools
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<TaskItem | null>(null);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(() => !isOnboardingCompleted());
@@ -53,8 +52,6 @@ export function useUIState() {
   return {
     activeTab,
     setActiveTab,
-    isAuthModalOpen,
-    setIsAuthModalOpen,
     isTaskModalOpen,
     setIsTaskModalOpen,
     editingTask,

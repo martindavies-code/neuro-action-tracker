@@ -13,6 +13,8 @@ import {
   sanitizeImportedSettings,
   sanitizeImportedStats,
   sanitizeImportedBadges,
+  loadTasks,
+  loadStats,
 } from '../src/services/storageService.ts';
 import {
   getLevelInfo,
@@ -29,7 +31,6 @@ import { ambientAudio } from '../src/services/ambientAudioService.ts';
 import { speechService } from '../src/services/speechService.ts';
 import { sound } from '../src/services/soundService.ts';
 import { getIconComponent } from '../src/utils/iconMap.ts';
-import { isFirebaseConfigured } from '../src/services/firebase.ts';
 import type { TaskItem, UserStats, Badge, CompanionChoice } from '../src/types.ts';
 
 describe('1. Task Scheduling & Lifecycle Engine', () => {
@@ -384,10 +385,14 @@ describe('10. Speech Completion & Callback Lifecycle', () => {
   });
 });
 
-describe('11. Firebase Safe Environment Initializer & Config Guarding', () => {
-  it('safely determines configuration status in test environment without throwing', () => {
-    const configured = isFirebaseConfigured();
-    assert.ok(typeof configured === 'boolean');
+describe('11. Client-Side Offline Storage & Environment Resilience', () => {
+  it('safely handles local storage operations without throwing in any environment', () => {
+    assert.doesNotThrow(() => {
+      const tasks = loadTasks();
+      assert.ok(Array.isArray(tasks));
+      const stats = loadStats();
+      assert.ok(typeof stats.xp === 'number');
+    });
   });
 });
 

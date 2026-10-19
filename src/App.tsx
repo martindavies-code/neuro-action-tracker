@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { TaskItem } from './types';
 import { getTodayIncompleteTasks, isTaskScheduledForToday, setOnboardingCompleted } from './services/storageService';
@@ -9,7 +9,6 @@ import { ProgressDashboard } from './components/ProgressDashboard';
 import { SettingsPanel } from './components/SettingsPanel';
 import { TaskModal } from './components/TaskModal';
 import { OnboardingModal } from './components/OnboardingModal';
-import { AuthModal } from './components/AuthModal';
 import { TaskSpinner } from './components/TaskSpinner';
 import { CommandPalette } from './components/CommandPalette';
 import { XpRoadmapModal } from './components/XpRoadmapModal';
@@ -17,7 +16,6 @@ import { IconRenderer } from './components/IconRenderer';
 import { getTranslation } from './services/i18nService';
 
 import { useUIState } from './hooks/useUIState';
-import { useCloudSync } from './hooks/useCloudSync';
 import { useTaskState } from './hooks/useTaskState';
 
 export const App: React.FC = () => {
@@ -28,8 +26,6 @@ export const App: React.FC = () => {
   const {
     activeTab,
     setActiveTab,
-    isAuthModalOpen,
-    setIsAuthModalOpen,
     isTaskModalOpen,
     setIsTaskModalOpen,
     editingTask,
@@ -46,12 +42,8 @@ export const App: React.FC = () => {
     showToast
   } = uiState;
 
-  // Ref to break circular dependency between TaskState and CloudSync
-  const triggerCloudSyncRef = useRef<((t: TaskItem[], s: import('./types').UserStats, b: import('./types').Badge[], set: import('./types').SensorySettings) => void) | null>(null);
-
   // Initialize Task State
   const taskState = useTaskState(
-    (...args) => triggerCloudSyncRef.current?.(...args),
     showToast,
     focusTask,
     setFocusTask
@@ -59,12 +51,9 @@ export const App: React.FC = () => {
 
   const {
     tasks,
-    setTasks,
     settings,
-    setSettings,
     setStats,
     badges,
-    setBadges,
     todayStr,
     past7Days,
     computedStats,
@@ -82,26 +71,6 @@ export const App: React.FC = () => {
     handleImportJSON,
     handleResetData,
   } = taskState;
-
-  // Initialize Cloud Sync with strict typing
-  const onCloudDataReceived = useCallback((
-    t: TaskItem[],
-    s: import('./types').UserStats,
-    b: import('./types').Badge[],
-    set: import('./types').SensorySettings
-  ) => {
-    setTasks(t);
-    setStats(s);
-    setBadges(b);
-    setSettings(set);
-  }, [setTasks, setStats, setBadges, setSettings]);
-
-  const { currentUser, triggerCloudSync } = useCloudSync(onCloudDataReceived, showToast);
-
-  // Keep ref up to date
-  useEffect(() => {
-    triggerCloudSyncRef.current = triggerCloudSync;
-  }, [triggerCloudSync]);
 
   const t = (key: Parameters<typeof getTranslation>[0]) => getTranslation(key, settings.language);
 
@@ -183,10 +152,9 @@ export const App: React.FC = () => {
       <Header
         stats={computedStats}
         settings={settings}
-        currentUser={currentUser}
         onUpdateSettings={handleUpdateSettings}
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenSettings={() => setActiveTab('settings')}
         onOpenXpRoadmap={() => setIsXpRoadmapOpen(true)}
       />
 
@@ -388,14 +356,6 @@ export const App: React.FC = () => {
         onUpdateStats={(newStats) => {
           setStats((prev) => ({ ...prev, ...newStats }));
         }}
-      />
-
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        currentUser={currentUser}
-        onLoginSuccess={() => setIsAuthModalOpen(false)}
-        onLogoutSuccess={() => setIsAuthModalOpen(false)}
       />
 
       <TaskSpinner

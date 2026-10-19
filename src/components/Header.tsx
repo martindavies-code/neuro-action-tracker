@@ -1,27 +1,24 @@
 import React from 'react';
 import type { SensorySettings, UserStats } from '../types';
-import type { User } from '../services/firebase';
 import { IconRenderer } from './IconRenderer';
 import { getTranslation } from '../services/i18nService';
 
 interface HeaderProps {
   stats: UserStats;
   settings: SensorySettings;
-  currentUser: User | null;
   onUpdateSettings: (newSettings: Partial<SensorySettings>) => void;
   onOpenOnboarding: () => void;
-  onOpenAuthModal: () => void;
   onOpenXpRoadmap: () => void;
+  onOpenSettings: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   stats,
   settings,
-  currentUser,
   onUpdateSettings,
   onOpenOnboarding,
-  onOpenAuthModal,
   onOpenXpRoadmap,
+  onOpenSettings,
 }) => {
   const t = (key: Parameters<typeof getTranslation>[0]) => getTranslation(key, settings.language);
 
@@ -80,18 +77,12 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             className="save-progress-btn"
-            onClick={onOpenAuthModal}
+            onClick={onOpenSettings}
             id="header-save-progress-btn"
-            title={
-              currentUser
-                ? `Signed in as ${currentUser.email} • Cloud backup active`
-                : 'Progress is automatically saved in your browser! Click to manage data & backups'
-            }
+            title="Progress is automatically saved in your browser (LocalStorage). Click to manage settings & backups."
           >
             <span className="save-dot active" />
-            <span className="save-text">
-              {currentUser ? t('sync_cloud') : t('sync_offline')}
-            </span>
+            <span className="save-text">{t('sync_offline')}</span>
           </button>
         </div>
       </div>

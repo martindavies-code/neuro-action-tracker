@@ -21,6 +21,6 @@ All hosting, bundling, testing, and continuous deployment are managed 100% throu
 
 ## Zero External Hosting Dependencies
 
-- **No Firebase Hosting**: Firebase hosting configurations have been completely removed. GitHub Pages is the sole host.
+- **Zero External Services**: Pure client-side application. No cloud databases, no external backend, and no third-party hosting dependencies. GitHub Pages is the sole host.
 - **No Local Server Required**: You do not need to run `localhost:5173` or a local Node.js process to use the application. Simply open the GitHub Pages link on any phone, tablet, or desktop browser.
 - **Client-Side Sovereignty**: All tasks, streaks, audio soundscapes, AI breakdown features, and mascot evolutions run directly in the browser and persist via HTML5 LocalStorage and downloadable JSON backups.

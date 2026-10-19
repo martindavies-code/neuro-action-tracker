@@ -23,7 +23,6 @@ import { triggerCelebration } from '../components/ConfettiBurst';
 import { getTranslation } from '../services/i18nService';
 
 export function useTaskState(
-  triggerCloudSync: (t: TaskItem[], s: UserStats, b: Badge[], set: SensorySettings) => void,
   showToast: (msg: string) => void,
   focusTask: TaskItem | null,
   setFocusTask: React.Dispatch<React.SetStateAction<TaskItem | null>>
@@ -82,10 +81,9 @@ export function useTaskState(
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
       saveSettings(updated);
-      triggerCloudSync(tasks, stats, badges, updated);
       return updated;
     });
-  }, [tasks, stats, badges, triggerCloudSync]);
+  }, []);
 
   const handleToggleComplete = useCallback((task: TaskItem, e?: React.MouseEvent, fromFocusMode = false) => {
     const isCompleted = task.completedDates.includes(todayStr);
@@ -153,7 +151,6 @@ export function useTaskState(
       { usedFocusMode: fromFocusMode }
     );
 
-    let currentBadges = badges;
     if (newlyUnlocked.length > 0) {
       sound.playBadge();
       newlyUnlocked.forEach((b) => {
@@ -161,11 +158,8 @@ export function useTaskState(
       });
       setBadges(updatedBadges);
       saveBadges(updatedBadges);
-      currentBadges = updatedBadges;
     }
-
-    triggerCloudSync(updatedTasks, newStats, currentBadges, settings);
-  }, [tasks, stats, badges, settings, todayStr, showToast, triggerCloudSync]);
+  }, [tasks, stats, badges, settings, todayStr, showToast]);
 
   const handleToggleSubTask = useCallback((taskId: string, subTaskId: string) => {
     const updated = tasks.map((t) => {
@@ -183,8 +177,7 @@ export function useTaskState(
     setTasks(updated);
     saveTasks(updated);
     sound.playPop();
-    triggerCloudSync(updated, stats, badges, settings);
-  }, [tasks, stats, badges, settings, focusTask, setFocusTask, triggerCloudSync]);
+  }, [tasks, focusTask, setFocusTask]);
 
   const handleAddSubTask = useCallback((taskId: string, title: string) => {
     const updated = tasks.map((t) => {
@@ -200,8 +193,7 @@ export function useTaskState(
     setTasks(updated);
     saveTasks(updated);
     sound.playPop();
-    triggerCloudSync(updated, stats, badges, settings);
-  }, [tasks, stats, badges, settings, focusTask, setFocusTask, triggerCloudSync]);
+  }, [tasks, focusTask, setFocusTask]);
 
   const handleBreakdownTask = useCallback(async (task: TaskItem) => {
     sound.playPop();
@@ -218,8 +210,7 @@ export function useTaskState(
     saveTasks(updated);
     sound.playLevelUp();
     showToast(`🪄 AI broke "${task.title}" into ${generated.length} gentle steps!`);
-    triggerCloudSync(updated, stats, badges, settings);
-  }, [tasks, stats, badges, settings, focusTask, setFocusTask, showToast, triggerCloudSync]);
+  }, [tasks, focusTask, setFocusTask, showToast]);
 
   const handleSetSubTasks = useCallback((taskId: string, subTasks: SubTask[]) => {
     const updated = tasks.map((t) => {
@@ -232,8 +223,7 @@ export function useTaskState(
     });
     setTasks(updated);
     saveTasks(updated);
-    triggerCloudSync(updated, stats, badges, settings);
-  }, [tasks, stats, badges, settings, focusTask, setFocusTask, triggerCloudSync]);
+  }, [tasks, focusTask, setFocusTask]);
 
   const handleSaveTask = useCallback((taskData: Partial<TaskItem>, editingTask: TaskItem | null) => {
     let updated: TaskItem[];
@@ -294,8 +284,7 @@ export function useTaskState(
         saveBadges(updatedBadges);
       }
     }
-    triggerCloudSync(updated, stats, badges, settings);
-  }, [tasks, stats, badges, settings, todayStr, showToast, triggerCloudSync]);
+  }, [tasks, stats, badges, todayStr, showToast]);
 
   const handleDirectAddTask = useCallback((taskData: Partial<TaskItem>): TaskItem => {
     const finalMinutes = taskData.estimatedMinutes || 5;
@@ -326,24 +315,21 @@ export function useTaskState(
     const updated = [newTask, ...tasks];
     setTasks(updated);
     saveTasks(updated);
-    triggerCloudSync(updated, stats, badges, settings);
     return newTask;
-  }, [tasks, stats, badges, settings, triggerCloudSync]);
+  }, [tasks]);
 
   const handleDeleteTask = useCallback((taskId: string) => {
     const updated = tasks.filter((t) => t.id !== taskId);
     setTasks(updated);
     saveTasks(updated);
-    triggerCloudSync(updated, stats, badges, settings);
     showToast('Task removed.');
-  }, [tasks, stats, badges, settings, triggerCloudSync, showToast]);
+  }, [tasks, showToast]);
 
   const handleChangePriority = useCallback((taskId: string, newPriority: Priority) => {
     const updated = tasks.map((t) => (t.id === taskId ? { ...t, priority: newPriority } : t));
     setTasks(updated);
     saveTasks(updated);
-    triggerCloudSync(updated, stats, badges, settings);
-  }, [tasks, stats, badges, settings, triggerCloudSync]);
+  }, [tasks]);
 
   const handleExportJSON = useCallback(() => {
     const json = exportBackupJSON();
@@ -368,12 +354,11 @@ export function useTaskState(
       setSettings(loadedSettings);
       setStats(loadedStats);
       setBadges(loadedBadges);
-      triggerCloudSync(loadedTasks, loadedStats, loadedBadges, loadedSettings);
       showToast('✓ Backup restored successfully.');
     } else {
       alert('Invalid backup JSON format.');
     }
-  }, [triggerCloudSync, showToast]);
+  }, [showToast]);
 
   const handleResetData = useCallback(() => {
     const confirmMsg = getTranslation('confirm_reset_account', settings.language);
@@ -387,10 +372,9 @@ export function useTaskState(
       setSettings(defaultSettings);
       setStats(defaultStats);
       setBadges(defaultBadges);
-      triggerCloudSync(DEFAULT_TASKS, defaultStats, defaultBadges, defaultSettings);
       showToast('✓ Reset to default tasks and settings.');
     }
-  }, [settings.language, triggerCloudSync, showToast]);
+  }, [settings.language, showToast]);
 
   return {
     tasks,

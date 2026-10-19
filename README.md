@@ -14,7 +14,7 @@ A gentle, sensory-accessible daily routine tracker designed specifically for ind
 
 🔗 **[https://martindavies-code.github.io/neuro-action-tracker/](https://martindavies-code.github.io/neuro-action-tracker/)**
 
-*Zero setup required. Runs 100% locally in your browser with offline PWA support, or optionally connect to cloud sync.*
+*Zero setup required. Runs 100% locally in your browser with offline PWA and HTML5 LocalStorage.*
 
 ---
 
@@ -75,7 +75,7 @@ npm test
 - `8. Speech Accessibility & Multi-language Locale Resolution`
 - `9. 7-Day Completion History & Scheduled Calculation Accuracy`
 - `10. Speech Completion & Callback Lifecycle`
-- `11. Firebase Safe Environment Initializer & Config Guarding`
+- `11. Client-Side Offline Storage & Environment Resilience`
 - `12. AI Task Difficulty & Executive Friction XP Evaluator`
 - `13. Companion Mascot Evolution Consistency`
 - `14. Magic Wand Clean Icon Parity across All Languages`
