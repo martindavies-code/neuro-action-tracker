@@ -31,6 +31,23 @@ describe('Approved review regressions',()=>{
  it('separates health administration from taking medication',async()=>{const steps=await generateMagicSubTasks('Prescription call');assert(steps.some(s=>s.title.includes('contact')));assert(!steps.some(s=>/swallow|dose|take your/i.test(s.title)))});
  it('does not schedule before createdAt',()=>{assert.equal(isTaskScheduledForToday({...DEFAULT_TASKS[0],createdAt:'2026-11-04T14:00:00Z'},'2026-11-03'),false)});
  it('returns localised, safe editable generic steps in non-English journeys',async()=>{for(const lang of ['es','fr','de','pt','it','ja','zh','ko'] as const){const steps=await generateMagicSubTasks('Prescription call',undefined,lang);assert.equal(steps.length,4);assert(!steps.some(s=>s.title.includes('Gather')||s.title.includes('dose')))}});
- it('uses local dates across BST midnight and DST date arithmetic',()=>{assert.equal(isTaskScheduledForToday({...DEFAULT_TASKS[0],createdAt:'2026-07-01T23:30:00Z'},'2026-07-01'),process.env.TZ==='Europe/London'?false:true);assert.equal(isTaskScheduledForToday({...DEFAULT_TASKS[0],recurrenceType:'custom_days',daysOfWeek:[],createdAt:'2026-01-01T00:00:00Z'},'2026-11-05'),false)});
+ it('uses the actual local creation date across midnight and DST boundaries',()=>{
+  // The OS can supply a timezone without process.env.TZ. Read the actual
+  // local calendar independently, including zones with shared UTC offsets.
+  const calendar=new Intl.DateTimeFormat('en-GB',{year:'numeric',month:'2-digit',day:'2-digit'});
+  for(const createdAt of ['2026-07-01T23:30:00Z','2026-07-02T00:30:00Z','2026-03-29T00:30:00Z','2026-10-25T01:30:00Z']){
+   const parts=calendar.formatToParts(new Date(createdAt));
+   const part=(name:string)=>parts.find(p=>p.type===name)!.value;
+   const localDate=`${part('year')}-${part('month')}-${part('day')}`;
+   const [year,month,day]=localDate.split('-').map(Number);
+   const prior=new Date(Date.UTC(year,month-1,day-1)).toISOString().slice(0,10);
+   const next=new Date(Date.UTC(year,month-1,day+1)).toISOString().slice(0,10);
+   const task={...DEFAULT_TASKS[0],createdAt,recurrenceType:'daily' as const,isOneOff:false,completedDates:[]};
+   assert.equal(isTaskScheduledForToday(task,prior),false,`${createdAt}: before local creation`);
+   assert.equal(isTaskScheduledForToday(task,localDate),true,`${createdAt}: on local creation`);
+   assert.equal(isTaskScheduledForToday(task,next),true,`${createdAt}: after local creation`);
+  }
+  assert.equal(isTaskScheduledForToday({...DEFAULT_TASKS[0],recurrenceType:'custom_days',daysOfWeek:[],createdAt:'2026-01-01T00:00:00Z'},'2026-11-05'),false);
+ });
  it('has complete added UI dictionaries for all eight translated languages',()=>{for(const [lang,row] of Object.entries(UI_COPY_TRANSLATIONS)){assert.equal(row.length,UI_COPY_KEYS.length,lang);assert(row.every(x=>typeof x==='string'&&x.length>0))}});
 });
