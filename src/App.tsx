@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import {ui} from './services/uiCopy';
+import {AppUpdate} from './components/AppUpdate';
+import {useDialogAccessibility} from './hooks/useDialogAccessibility';
+import {ReadingGuide} from './components/ReadingGuide';
+import React, { useState, lazy, Suspense, useEffect } from 'react';
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import type { TaskItem } from './types';
-import { getTodayIncompleteTasks, isTaskScheduledForToday, setOnboardingCompleted } from './services/storageService';
+import { getTodayIncompleteTasks, matchesEnergy, saveStats, isTaskScheduledForToday, setOnboardingCompleted } from './services/storageService';
 import { Header } from './components/Header';
 import { DailyChecklist } from './components/DailyChecklist';
 import { FocusMode } from './components/FocusMode';
-import { ProgressDashboard } from './components/ProgressDashboard';
-import { SettingsPanel } from './components/SettingsPanel';
-import { TaskModal } from './components/TaskModal';
+const ProgressDashboard = lazy(()=>import('./components/ProgressDashboard').then(m=>({default:m.ProgressDashboard})));
+const SettingsPanel = lazy(()=>import('./components/SettingsPanel').then(m=>({default:m.SettingsPanel})));
+const TaskModal=lazy(()=>import('./components/TaskModal').then(m=>({default:m.TaskModal})));
 import { OnboardingModal } from './components/OnboardingModal';
-import { TaskSpinner } from './components/TaskSpinner';
-import { CommandPalette } from './components/CommandPalette';
-import { XpRoadmapModal } from './components/XpRoadmapModal';
+const TaskSpinner=lazy(()=>import('./components/TaskSpinner').then(m=>({default:m.TaskSpinner})));
+const CommandPalette=lazy(()=>import('./components/CommandPalette').then(m=>({default:m.CommandPalette})));
+const XpRoadmapModal=lazy(()=>import('./components/XpRoadmapModal').then(m=>({default:m.XpRoadmapModal})));
 import { IconRenderer } from './components/IconRenderer';
 import { getTranslation } from './services/i18nService';
 
@@ -19,6 +23,9 @@ import { useUIState } from './hooks/useUIState';
 import { useTaskState } from './hooks/useTaskState';
 
 export const App: React.FC = () => {
+  useDialogAccessibility();
+  const [saveFailed,setSaveFailed]=useState(Boolean((window as any).__rhythmStorageFailed));
+  useEffect(()=>{if((window as any).__rhythmStorageFailed)queueMicrotask(()=>setSaveFailed(true));const fail=()=>setSaveFailed(true);window.addEventListener('rhythm-storage-error',fail);return()=>window.removeEventListener('rhythm-storage-error',fail)},[]);
   const [focusTask, setFocusTask] = useState<TaskItem | null>(null);
 
   // Initialize UI State
@@ -61,7 +68,6 @@ export const App: React.FC = () => {
     handleToggleComplete,
     handleToggleSubTask,
     handleAddSubTask,
-    handleBreakdownTask,
     handleSetSubTasks,
     handleSaveTask,
     handleDirectAddTask,
@@ -79,7 +85,7 @@ export const App: React.FC = () => {
     if (task) {
       setFocusTask(task);
     } else {
-      const activeIncomplete = getTodayIncompleteTasks(tasks, todayStr)
+      const activeIncomplete = getTodayIncompleteTasks(tasks, todayStr).filter(t=>settings.energyBattery==='low'?(t.estimatedMinutes||5)<=5&&t.priority!=='high':settings.energyBattery==='moderate'?(t.estimatedMinutes||5)<=15:true)
         .sort((a, b) => {
           const priorityScore = { high: 3, medium: 2, low: 1 };
           return priorityScore[b.priority] - priorityScore[a.priority];
@@ -89,14 +95,14 @@ export const App: React.FC = () => {
         setFocusTask(activeIncomplete[0]);
       } else {
         const todayTasks = tasks.filter((t_item) => isTaskScheduledForToday(t_item, todayStr));
-        setFocusTask(todayTasks[0] || tasks[0] || null);
+        setFocusTask(todayTasks.find(t=>!t.completedDates.includes(todayStr)&&matchesEnergy(t,settings.energyBattery)) || null);
       }
     }
     setActiveTab('focus');
   };
 
   const handleNextFocusTask = () => {
-    const activeIncomplete = getTodayIncompleteTasks(tasks, todayStr).filter(
+    const activeIncomplete = getTodayIncompleteTasks(tasks, todayStr).filter(t=>matchesEnergy(t,settings.energyBattery)).filter(
       (t_item) => t_item.id !== focusTask?.id
     );
     if (activeIncomplete.length > 0) {
@@ -109,7 +115,7 @@ export const App: React.FC = () => {
 
   const handleCompleteInFocus = (task: TaskItem, e?: React.MouseEvent) => {
     handleToggleComplete(task, e, true);
-    const activeIncomplete = getTodayIncompleteTasks(tasks, todayStr).filter(
+    const activeIncomplete = getTodayIncompleteTasks(tasks, todayStr).filter(t=>matchesEnergy(t,settings.energyBattery)).filter(
       (t_item) => t_item.id !== task.id
     );
     if (activeIncomplete.length > 0) {
@@ -121,9 +127,11 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="app-layout">
+    <Suspense fallback={<div role="status">Loading RhythmQuest…</div>}><MotionConfig reducedMotion={settings.reducedMotion?'always':'user'}><Suspense fallback={<p role="status">Opening your view…</p>}><div className="app-layout">
+      <ReadingGuide language={settings.language} enabled={settings.readingRuler}/>
+      {saveFailed&&<div role="alert" className="save-warning">{ui('Save failed. Keep this tab open and export a backup.',settings.language)} <button onClick={handleExportJSON}>{ui('Export backup',settings.language)}</button></div>}
       {/* Toast Notification */}
-      {achievementToast && (
+      {achievementToast && settings.showCelebrations!==false && (
         <div
           style={{
             position: 'fixed',
@@ -144,7 +152,7 @@ export const App: React.FC = () => {
             animation: 'slideIn 0.3s ease',
           }}
         >
-          <span>{achievementToast}</span>
+          <span role="status" aria-live="polite">{achievementToast}</span>
         </div>
       )}
 
@@ -230,7 +238,7 @@ export const App: React.FC = () => {
                 onOpenSpinner={() => setIsSpinnerOpen(true)}
                 onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
                 onToggleSubTask={handleToggleSubTask}
-                onBreakdownTask={handleBreakdownTask}
+                onSetSubTasks={handleSetSubTasks}
               />
             </motion.div>
           )}
@@ -257,7 +265,7 @@ export const App: React.FC = () => {
                 />
               ) : (
                 <div style={{ textAlign: 'center', padding: '60px 20px', background: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', margin: '20px auto', maxWidth: '480px' }}>
-                  <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🎯</div>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}></div>
                   <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
                     {t('ready_to_focus')}
                   </h2>
@@ -293,6 +301,7 @@ export const App: React.FC = () => {
                 tasks={tasks}
                 badges={badges}
                 past7Days={past7Days}
+                settings={settings}
                 language={settings.language}
                 onOpenXpRoadmap={() => setIsXpRoadmapOpen(true)}
               />
@@ -344,7 +353,7 @@ export const App: React.FC = () => {
         initialTask={editingTask}
       />
 
-      <OnboardingModal
+      <OnboardingModal language={settings.language}
         isOpen={isOnboardingOpen}
         onClose={() => {
           setIsOnboardingOpen(false);
@@ -354,12 +363,12 @@ export const App: React.FC = () => {
         onAddTask={handleDirectAddTask}
         onCompleteTask={(t_item) => handleToggleComplete(t_item)}
         onUpdateStats={(newStats) => {
-          setStats((prev) => ({ ...prev, ...newStats }));
+          setStats((prev) => {const next={...prev,...newStats};saveStats(next);return next});
         }}
       />
 
       <TaskSpinner
-        tasks={tasks}
+        tasks={tasks.filter(t=>matchesEnergy(t,settings.energyBattery))}
         todayStr={todayStr}
         language={settings.language}
         isOpen={isSpinnerOpen}
@@ -381,13 +390,14 @@ export const App: React.FC = () => {
         }}
       />
 
-      <XpRoadmapModal
+      <XpRoadmapModal language={settings.language}
         isOpen={isXpRoadmapOpen}
         onClose={() => setIsXpRoadmapOpen(false)}
         stats={computedStats}
         companionChoice={settings.companionChoice}
         onSelectCompanion={(choice) => handleUpdateSettings({ companionChoice: choice })}
       />
-    </div>
+      <AppUpdate language={settings.language}/>
+    </div></Suspense></MotionConfig></Suspense>
   );
 };

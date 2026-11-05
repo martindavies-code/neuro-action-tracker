@@ -36,7 +36,7 @@ export const VisualTimeTimer: React.FC<VisualTimeTimerProps> = ({
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
       {/* SVG Time Disc */}
       <div style={{ position: 'relative', width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <svg aria-hidden="true" focusable="false" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
           {/* Background track */}
           <circle
             cx={size / 2}
@@ -107,7 +107,7 @@ export const VisualTimeTimer: React.FC<VisualTimeTimerProps> = ({
       </div>
 
       {/* Control Buttons */}
-      <div style={{ display: 'flex', gap: '10px' }}>
+      <div className="timer-controls" style={{ display: 'flex', flexWrap:'wrap', justifyContent:'center', gap: '10px' }}>
         <button
           type="button"
           className="btn-primary"

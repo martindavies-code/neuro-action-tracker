@@ -9,14 +9,14 @@ export function triggerCelebration(
     type?: 'standard' | 'massive' | 'focus';
   }
 ) {
-  if (settings.reducedMotion) return;
+  if (settings.reducedMotion || settings.showCelebrations === false) return;
 
   const isGentle = settings.celebrationIntensity === 'gentle';
   const isVibrant = settings.celebrationIntensity === 'vibrant';
 
   let count = isGentle ? 20 : isVibrant ? 80 : 45;
   let spread = isGentle ? 40 : 70;
-  
+
   if (options?.type === 'massive') {
     count = isGentle ? 50 : isVibrant ? 200 : 120;
     spread = 100;

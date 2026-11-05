@@ -1,3 +1,4 @@
+import {ui} from '../services/uiCopy';
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { SupportedLanguage, TaskItem } from '../types';
@@ -72,10 +73,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     { id: 'all', label: t('filter_all') },
     { id: 'todo', label: t('tab_today') },
     { id: 'completed', label: t('completed_banner') },
-    { id: 'morning', label: `🌅 ${t('filter_morning')}` },
-    { id: 'afternoon', label: `☀️ ${t('filter_afternoon')}` },
-    { id: 'evening', label: `🌙 ${t('filter_evening')}` },
-    { id: 'high', label: `🔥 ${t('priority_high')}` },
+    { id: 'morning', label: ` ${t('filter_morning')}` },
+    { id: 'afternoon', label: ` ${t('filter_afternoon')}` },
+    { id: 'evening', label: ` ${t('filter_evening')}` },
+    { id: 'high', label: ` ${t('priority_high')}` },
   ];
 
   return (
@@ -130,9 +131,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'var(--bg-surface-subtle)', border: '1px solid var(--border-subtle)', padding: '3px 8px', borderRadius: 'var(--radius-sm)' }}>
               {t('esc_to_close')}
             </span>
-            <button className="btn-icon" onClick={onClose} aria-label="Close search">
-              ✕
-            </button>
+            <button className="btn-icon dialog-close" onClick={onClose} aria-label={ui('Close',language)}>×</button>
           </div>
         </div>
 
@@ -179,7 +178,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
               }}
               title={t('clear_search_btn')}
             >
-              ✕
+
             </button>
           )}
         </div>
@@ -240,7 +239,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 border: '1px dashed var(--border-subtle)',
               }}
             >
-              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🔍</div>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}></div>
               <p style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 4px 0' }}>
                 {t('search_no_match')}
               </p>
@@ -282,7 +281,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       className={`task-checkbox-btn ${isCompleted ? 'checked' : ''}`}
                       style={{ width: '24px', height: '24px', flexShrink: 0 }}
                       onClick={() => onToggleComplete(taskItem)}
-                      aria-label={isCompleted ? `Mark ${taskItem.title} incomplete` : `Mark ${taskItem.title} complete`}
+                      aria-label={isCompleted ? ui('Mark incomplete',language)+': '+taskItem.title : ui('Mark complete',language)+': '+taskItem.title}
                     >
                       {isCompleted && <IconRenderer name="Check" size={14} />}
                     </button>
@@ -323,15 +322,15 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                               color: '#ef4444',
                             }}
                           >
-                            🔥 {t('priority_high')}
+                             {t('priority_high')}
                           </span>
                         )}
                       </div>
 
                       <div style={{ display: 'flex', gap: '10px', fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '3px' }}>
                         <span>⏱ {taskItem.estimatedMinutes || 5}m</span>
-                        <span>⚡ +{taskItem.xpValue || 15} XP</span>
-                        {taskItem.isOneOff && <span>📌 {t('filter_oneoff')}</span>}
+                        <span> +{taskItem.xpValue || 15} XP</span>
+                        {taskItem.isOneOff && <span> {t('filter_oneoff')}</span>}
                       </div>
                     </div>
                   </div>
@@ -344,9 +343,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                         onFocusTask(taskItem);
                         onClose();
                       }}
-                      title="Focus on this task in Focus Spotlight"
+                      title={ui('Start this action',language)}
                     >
-                      {t('tab_focus')} 🎯
+                      {t('tab_focus')}
                     </button>
                   </div>
                 </div>

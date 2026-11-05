@@ -1,9 +1,10 @@
+import {ui} from '../services/uiCopy';
+import {CompanionArt} from './CompanionArt';
 import React, { useState } from 'react';
 import type { CompanionChoice, SupportedLanguage, UserStats } from '../types';
 import { speechService } from '../services/speechService';
 import { IconRenderer } from './IconRenderer';
 
-import { getCompanionStage } from '../services/gamificationService';
 
 interface CompanionWidgetProps {
   stats: UserStats;
@@ -13,13 +14,13 @@ interface CompanionWidgetProps {
 }
 
 const ENCOURAGING_QUIPS = [
-  '“5 minutes of doing something is infinite times better than zero.”',
-  '“Your brain isn’t broken—it just operates on genuine interest and rhythm.”',
-  '“Drink a quick sip of water. Your neurons will thank you!”',
-  '“Task paralysis is just executive friction. Start with one micro-step!”',
-  '“Small wins release big dopamine. Keep riding your gentle wave!”',
-  '“Done is better than perfect. You are doing fantastic today.”',
-  '“Streaks without guilt: you have streak shields to protect your momentum.”',
+ 'A small start is enough.',
+ 'You can pause and come back.',
+ 'One action at a time.',
+ 'Your pace can change today.',
+ 'You do not need to finish everything.',
+ 'You get to choose what feels useful.',
+ 'Your history is a record, not a score you owe anyone.',
 ];
 
 export const CompanionWidget: React.FC<CompanionWidgetProps> = ({
@@ -41,7 +42,8 @@ export const CompanionWidget: React.FC<CompanionWidgetProps> = ({
   }, [isSpeaking]);
 
   const cycleQuip = () => {
-    setIsWaving(true);
+    const reduced=document.documentElement.getAttribute('data-reduced-motion')==='true'||window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    setIsWaving(!reduced);
     setQuipIdx((prev) => (prev + 1) % ENCOURAGING_QUIPS.length);
     setTimeout(() => setIsWaving(false), 500);
   };
@@ -54,19 +56,13 @@ export const CompanionWidget: React.FC<CompanionWidgetProps> = ({
     }
     setIsSpeaking(true);
     speechService.speak(
-      ENCOURAGING_QUIPS[quipIdx],
+      ui(ENCOURAGING_QUIPS[quipIdx],language),
       language,
       () => setIsSpeaking(false),
       () => setIsSpeaking(false)
     );
   };
 
-  const compData = getCompanionStage(companionChoice, stats.level);
-  const comp = {
-    name: compData.name,
-    emoji: compData.currentStage.emoji,
-    stage: compData.formattedStage,
-  };
 
   return (
     <div
@@ -89,7 +85,7 @@ export const CompanionWidget: React.FC<CompanionWidgetProps> = ({
         {/* Animated Companion Avatar */}
         <div
           onClick={cycleQuip}
-          title={`Click ${comp.name} for an encouraging thought!`}
+          title={ui('New thought',language)}
           style={{
             width: '48px',
             height: '48px',
@@ -107,13 +103,13 @@ export const CompanionWidget: React.FC<CompanionWidgetProps> = ({
             userSelect: 'none',
           }}
         >
-          <span style={{ fontSize: '1.6rem' }}>{comp.emoji}</span>
+          <CompanionArt choice={companionChoice} level={stats.level} language={language}/>
         </div>
 
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-              {comp.name}
+              {companionChoice[0].toUpperCase()+companionChoice.slice(1)}
             </span>
             <span
               style={{
@@ -125,7 +121,7 @@ export const CompanionWidget: React.FC<CompanionWidgetProps> = ({
                 borderRadius: '12px',
               }}
             >
-              {comp.stage}
+              {ui('Growth stage',language)} {stats.level>=5?3:stats.level>=3?2:1}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
@@ -139,12 +135,12 @@ export const CompanionWidget: React.FC<CompanionWidgetProps> = ({
               }}
               onClick={cycleQuip}
             >
-              {ENCOURAGING_QUIPS[quipIdx]}
+              {ui(ENCOURAGING_QUIPS[quipIdx],language)}
             </p>
             <button
               type="button"
               onClick={handleSpeakThought}
-              title="Read thought aloud"
+              title={ui('Read aloud',language)}
               style={{
                 fontSize: '0.75rem',
                 opacity: isSpeaking ? 1 : 0.6,
@@ -152,9 +148,8 @@ export const CompanionWidget: React.FC<CompanionWidgetProps> = ({
                 cursor: 'pointer',
                 padding: '2px 4px',
               }}
-              aria-label="Read companion thought aloud"
-            >
-              🔊
+              aria-label={ui('Read aloud',language)}
+            ><IconRenderer name="Volume2" size={15}/>
             </button>
           </div>
         </div>
@@ -162,16 +157,16 @@ export const CompanionWidget: React.FC<CompanionWidgetProps> = ({
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-          {completedTodayCount} tasks nurtured today
+          {ui('Completed today',language)}: {completedTodayCount}
         </span>
         <button
           className="btn-secondary"
           style={{ padding: '5px 10px', fontSize: '0.78rem' }}
           onClick={cycleQuip}
-          title="Inspire me with a new thought"
+          title={ui('New thought',language)}
         >
           <IconRenderer name="Smile" size={13} />
-          <span>New Thought</span>
+          <span>{ui('New thought',language)}</span>
         </button>
       </div>
     </div>

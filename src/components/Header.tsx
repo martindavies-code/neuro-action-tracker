@@ -1,3 +1,4 @@
+import {ui} from '../services/uiCopy';
 import React from 'react';
 import type { SensorySettings, UserStats } from '../types';
 import { IconRenderer } from './IconRenderer';
@@ -37,7 +38,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Top row: Brand on left, sensory controls on right */}
       <div className="header-top-row">
         <div className="brand-section">
-          <div className="brand-logo-badge" title="RhythmQuest Action Tracker">
+          <div className="brand-logo-badge" title="RhythmQuest">
             <IconRenderer name="Sparkles" size={18} />
           </div>
           <div className="brand-text-container">
@@ -47,12 +48,12 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Sensory Controls & Save Progress */}
-        <div className="header-controls" role="toolbar" aria-label="Sensory and Quick Settings">
+        <div className="header-controls" role="toolbar" aria-label={t('tab_settings')}>
           <button
             className="btn-icon"
             onClick={toggleSound}
-            title={settings.soundEnabled ? 'Sound effects enabled (Click to mute)' : 'Sound muted (Click to enable)'}
-            aria-label={settings.soundEnabled ? 'Mute sound effects' : 'Enable sound effects'}
+            title={ui('Sound on/off',settings.language)}
+            aria-label={ui('Sound on/off',settings.language)}
           >
             <IconRenderer name={settings.soundEnabled ? 'Volume2' : 'VolumeX'} size={16} />
           </button>
@@ -60,8 +61,8 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             className="btn-icon"
             onClick={cycleTheme}
-            title={`Current Theme: ${settings.theme} (Click to switch)`}
-            aria-label={`Switch Theme. Current theme: ${settings.theme}`}
+            title={ui('Theme',settings.language)}
+            aria-label={ui('Theme',settings.language)}
           >
             <IconRenderer name="Palette" size={16} />
           </button>
@@ -69,8 +70,8 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             className="btn-icon"
             onClick={onOpenOnboarding}
-            title="Guided Tutorial Walkthrough"
-            aria-label="Open guided tutorial walkthrough"
+            title={ui('Replay tutorial',settings.language)}
+            aria-label={ui('Replay tutorial',settings.language)}
           >
             <IconRenderer name="HelpCircle" size={16} />
           </button>
@@ -79,8 +80,8 @@ export const Header: React.FC<HeaderProps> = ({
             className="save-progress-btn"
             onClick={onOpenSettings}
             id="header-save-progress-btn"
-            title="Progress is automatically saved in your browser (LocalStorage). Click to manage settings & backups."
-            aria-label={`${t('sync_offline')} - Manage settings and backups`}
+            title={ui('Stored on this device',settings.language)}
+            aria-label={t('tab_settings')}
           >
             <span className="save-dot active" aria-hidden="true" />
             <span className="save-text">{t('sync_offline')}</span>
@@ -89,12 +90,12 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Bottom row: Game Status Pills */}
-      <div className="header-status-row" role="region" aria-label="Game Progress and Streaks">
+      <div className="header-status-row" role="region" aria-label={ui('Optional rewards',settings.language)}>
         <div
-          className="level-badge-compact"
+          className="level-badge-compact reward-xp"
           onClick={onOpenXpRoadmap}
           style={{ cursor: 'pointer' }}
-          title={`Level ${stats.level}: ${stats.levelTitle} (Click to view Level & Companion Roadmap)`}
+          title={ui('Level',settings.language)+' '+stats.level}
           id="header-level-badge"
           role="button"
           tabIndex={0}
@@ -104,10 +105,10 @@ export const Header: React.FC<HeaderProps> = ({
               onOpenXpRoadmap();
             }
           }}
-          aria-label={`Level ${stats.level}: ${stats.levelTitle}. Open roadmap.`}
+          aria-label={ui('Level',settings.language)+' '+stats.level}
         >
           <IconRenderer name="Award" size={14} />
-          <span>{t('level_badge')} {stats.level} • {stats.levelTitle}</span>
+          <span>{t('level_badge')} {stats.level}</span>
         </div>
 
         <div className="status-pill-group">
@@ -115,7 +116,7 @@ export const Header: React.FC<HeaderProps> = ({
             className="status-pill xp-pill"
             onClick={onOpenXpRoadmap}
             style={{ cursor: 'pointer' }}
-            title="XP fuels your Rank & Companion Evolution (Click to view guide)"
+            title={ui('Optional rewards',settings.language)}
             id="header-xp-pill"
             role="button"
             tabIndex={0}
@@ -125,7 +126,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onOpenXpRoadmap();
               }
             }}
-            aria-label={`${stats.xp} Experience Points`}
+            aria-label={`${stats.xp} XP`}
           >
             <IconRenderer name="Zap" size={13} />
             <span>{stats.xp} XP</span>
@@ -133,18 +134,18 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div
             className="status-pill streak-pill"
-            title={`${stats.currentStreak} day routine streak`}
-            aria-label={`${stats.currentStreak} day streak`}
+            title={stats.currentStreak+' '+t('streak_badge')}
+            aria-label={stats.currentStreak+' '+t('streak_badge')}
           >
             <IconRenderer name="Flame" size={13} />
-            <span>{stats.currentStreak}d {t('streak_badge')}</span>
+            <span>{stats.currentStreak} {t('streak_badge')}</span>
           </div>
 
           {stats.streakShields > 0 && (
             <div
               className="status-pill shield-pill"
-              title={`${stats.streakShields} Streak Shields active`}
-              aria-label={`${stats.streakShields} streak shields active`}
+              title={stats.streakShields+' '+t('shields_badge')}
+              aria-label={stats.streakShields+' '+t('shields_badge')}
             >
               <IconRenderer name="Shield" size={13} />
               <span>{stats.streakShields} {t('shields_badge')}</span>

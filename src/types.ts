@@ -16,6 +16,7 @@ export interface SubTask {
   id: string;
   title: string;
   completed: boolean;
+  completedDates?: string[];
 }
 
 export interface TaskItem {
@@ -29,6 +30,8 @@ export interface TaskItem {
   iconName: string;
   completedDates: string[]; // ISO date strings 'YYYY-MM-DD'
   isDefault?: boolean;
+  archivedAt?: string;
+  history?: DayCompletionRecord[];
   createdAt: string;
   order: number;
   archived?: boolean;
@@ -45,7 +48,7 @@ export interface SensorySettings {
   language: SupportedLanguage;
   soundEnabled: boolean;
   soundVolume: number; // 0.0 to 1.0
-  soundPack: 'chimes' | 'retro' | 'water';
+  soundPack: 'chimes';
   reducedMotion: boolean;
   dyslexicFont: boolean;
   bionicReading: boolean;
@@ -56,6 +59,12 @@ export interface SensorySettings {
   showCompanion: boolean;
   companionChoice: CompanionChoice;
   energyBattery: EnergyBattery;
+  showXp?: boolean;
+  showStreaks?: boolean;
+  showQuotes?: boolean;
+  showCelebrations?: boolean;
+  profile?: 'quiet' | 'playful' | 'custom';
+  energyCheckedDate?: string;
 }
 
 export interface Badge {
@@ -78,6 +87,8 @@ export interface UserStats {
   totalCompletions: number;
   lastActiveDate: string;
   tutorialXpAwarded?: boolean;
+  protectedDates?: string[];
+  shieldCheckedDate?: string;
 }
 
 export interface DayCompletionRecord {

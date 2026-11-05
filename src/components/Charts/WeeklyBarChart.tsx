@@ -1,3 +1,4 @@
+import {ui} from '../../services/uiCopy';
 import React, { useState, useMemo } from 'react';
 import type { DayCompletionRecord, SupportedLanguage } from '../../types';
 import { resolveActiveLanguage } from '../../services/i18nService';
@@ -58,10 +59,10 @@ export const WeeklyBarChart: React.FC<WeeklyBarChartProps> = ({ data, language =
       <div className="dash-card-header" style={{ marginBottom: '12px' }}>
         <div>
           <h3 className="dash-card-title" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
-            📊 7-Day Completion Flow
+             {ui('Weekly completion',language)}
           </h3>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            <strong style={{ color: 'var(--primary)', fontWeight: 700 }}>{statsSummary.ratePercent}% consistency</strong> this week • {statsSummary.totalDone} of {statsSummary.totalScheduled} routines completed (+{statsSummary.totalXp} XP)
+            <strong style={{ color: 'var(--primary)', fontWeight: 700 }}>{statsSummary.ratePercent}%</strong> {ui('Completed this week',language)}: {statsSummary.totalDone} / {statsSummary.totalScheduled} <span className="reward-xp">(+{statsSummary.totalXp} XP)</span>
           </p>
         </div>
       </div>
@@ -71,7 +72,7 @@ export const WeeklyBarChart: React.FC<WeeklyBarChartProps> = ({ data, language =
           viewBox={`0 0 ${svgWidth} ${chartHeight + 44}`}
           style={{ width: '100%', minWidth: '320px', maxHeight: '210px', overflow: 'visible' }}
           role="img"
-          aria-label="7-Day completion chart"
+          aria-label={ui('Weekly completion',language)}
         >
           {/* Explicit Y-axis label (Solves Flaw #5 Counterintuitive plot labelling) */}
           <text
@@ -82,7 +83,7 @@ export const WeeklyBarChart: React.FC<WeeklyBarChartProps> = ({ data, language =
             fontWeight="600"
             fontFamily="inherit"
           >
-            ROUTINES
+            {ui('Active routines',language)}
           </text>
 
           {/* Grid lines with clear scale numbers */}
@@ -216,10 +217,10 @@ export const WeeklyBarChart: React.FC<WeeklyBarChartProps> = ({ data, language =
           }}
         >
           <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-            📅 {data[hoveredIdx].date} ({formatDayName(data[hoveredIdx].date)})
+             {data[hoveredIdx].date} ({formatDayName(data[hoveredIdx].date)})
           </span>
           <span>
-            <strong>{data[hoveredIdx].completedCount}</strong> of <strong>{data[hoveredIdx].totalAvailable}</strong> done ({data[hoveredIdx].totalAvailable > 0 ? Math.round((data[hoveredIdx].completedCount / data[hoveredIdx].totalAvailable) * 100) : 0}%) •{' '}
+            <strong>{data[hoveredIdx].completedCount}</strong> {ui('of',language)} <strong>{data[hoveredIdx].totalAvailable}</strong> {ui('Done',language)} ({data[hoveredIdx].totalAvailable > 0 ? Math.round((data[hoveredIdx].completedCount / data[hoveredIdx].totalAvailable) * 100) : 0}%) •{' '}
             <span style={{ color: 'var(--xp-gold)', fontWeight: 700 }}>
               +{data[hoveredIdx].xpEarned} XP
             </span>

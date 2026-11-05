@@ -1,3 +1,4 @@
+import {ui} from '../services/uiCopy';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { SupportedLanguage, TaskItem } from '../types';
@@ -121,9 +122,7 @@ export const TaskSpinner: React.FC<TaskSpinnerProps> = ({
                   {t('spinner_title')}
                 </h2>
               </div>
-              <button className="btn-icon" onClick={handleClose} aria-label="Close modal">
-                ✕
-              </button>
+              <button className="btn-icon" onClick={handleClose} aria-label={ui('Close',language)}>×</button>
             </div>
 
             <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: '20px' }}>
@@ -132,7 +131,7 @@ export const TaskSpinner: React.FC<TaskSpinnerProps> = ({
 
             {incompleteTasks.length === 0 ? (
               <div style={{ padding: '24px 0' }}>
-                <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '8px' }}>🌟</span>
+                <span style={{ fontSize: '2.5rem', display: 'block', marginBottom: '8px' }}></span>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   {t('spinner_all_done')}
                 </h3>

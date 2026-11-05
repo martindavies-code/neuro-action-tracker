@@ -1,3 +1,4 @@
+import {ui} from '../services/uiCopy';
 import React, { useState } from 'react';
 import type { EnergyBattery, SupportedLanguage } from '../types';
 import { sound } from '../services/soundService';
@@ -26,11 +27,11 @@ export const SpoonBatteryWidget: React.FC<SpoonBatteryWidgetProps> = ({
   const getStatusText = () => {
     switch (battery) {
       case 'full':
-        return `🟢 ${t('energy_high_desc')}`;
+        return ` ${t('energy_high_desc')}`;
       case 'moderate':
-        return `🟡 ${t('energy_moderate_desc')}`;
+        return ` ${t('energy_moderate_desc')}`;
       case 'low':
-        return `🛋️ ${t('energy_low_desc')}`;
+        return ` ${t('energy_low_desc')}`;
     }
   };
 
@@ -53,7 +54,7 @@ export const SpoonBatteryWidget: React.FC<SpoonBatteryWidgetProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-            🔋 {t('energy_question')}
+             {t('energy_question')}
           </span>
           <button
             type="button"
@@ -68,8 +69,8 @@ export const SpoonBatteryWidget: React.FC<SpoonBatteryWidgetProps> = ({
               padding: '2px',
               fontSize: '0.75rem',
             }}
-            title="What is the Sensory Battery?"
-            aria-label="Explain sensory battery"
+            title={ui('Energy options',language)}
+            aria-label={ui('Energy options',language)}
           >
             <IconRenderer name="HelpCircle" size={14} />
           </button>
@@ -96,7 +97,7 @@ export const SpoonBatteryWidget: React.FC<SpoonBatteryWidgetProps> = ({
             }}
             title={t('energy_high_desc')}
           >
-            <span>🟢 {t('energy_high')}</span>
+            <span> {t('energy_high')}</span>
           </button>
 
           <button
@@ -118,7 +119,7 @@ export const SpoonBatteryWidget: React.FC<SpoonBatteryWidgetProps> = ({
             }}
             title={t('energy_moderate_desc')}
           >
-            <span>🟡 {t('energy_moderate')}</span>
+            <span> {t('energy_moderate')}</span>
           </button>
 
           <button
@@ -140,7 +141,7 @@ export const SpoonBatteryWidget: React.FC<SpoonBatteryWidgetProps> = ({
             }}
             title={t('energy_low_desc')}
           >
-            <span>🔴 {t('energy_low')}</span>
+            <span> {t('energy_low')}</span>
           </button>
         </div>
       </div>
@@ -164,7 +165,7 @@ export const SpoonBatteryWidget: React.FC<SpoonBatteryWidgetProps> = ({
             lineHeight: 1.45,
           }}
         >
-          💡 {t('spoon_theory_explanation')}
+           {ui('Low shows tasks up to 5 minutes without high priority. Moderate shows tasks up to 15 minutes. These are adjustable filters, not a measure of your capacity.',language)}
         </div>
       )}
     </div>

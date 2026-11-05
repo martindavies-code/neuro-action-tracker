@@ -1,4 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { ui } from '../services/uiCopy';
+import { loadSettings } from '../services/storageService';
 import { IconRenderer } from './IconRenderer';
 
 interface Props {
@@ -28,27 +30,9 @@ export class ErrorBoundary extends Component<Props, State> {
     window.location.reload();
   };
 
-  private handleResetCache = () => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        // Keep user tasks, stats, badges and settings safe while resetting corrupted transient DOM/worker cache
-        const tasks = window.localStorage.getItem('nat_tasks_v2');
-        const stats = window.localStorage.getItem('nat_user_stats_v2');
-        const badges = window.localStorage.getItem('nat_badges_v1');
-        const settings = window.localStorage.getItem('nat_sensory_settings_v1');
-        window.localStorage.clear();
-        if (tasks) window.localStorage.setItem('nat_tasks_v2', tasks);
-        if (stats) window.localStorage.setItem('nat_user_stats_v2', stats);
-        if (badges) window.localStorage.setItem('nat_badges_v1', badges);
-        if (settings) window.localStorage.setItem('nat_sensory_settings_v1', settings);
-      }
-    } finally {
-      window.location.reload();
-    }
-  };
-
   public render() {
     if (this.state.hasError) {
+      const language=loadSettings().language;
       return (
         <div
           style={{
@@ -91,10 +75,10 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '8px' }}>
-              Gentle Pause & Breath 🌱
+              {ui('Something went wrong',language)}
             </h2>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary, #94a3b8)', lineHeight: 1.5, marginBottom: '20px' }}>
-              RhythmQuest encountered a temporary visual hiccup. Don't worry — your routine tasks, XP, and streak shields are safe in your local storage.
+              {ui('Your saved data has not been reset. Reload to try again. If the problem continues, keep this tab open and seek help before clearing data.',language)}
             </p>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -112,24 +96,10 @@ export class ErrorBoundary extends Component<Props, State> {
                   cursor: 'pointer',
                 }}
               >
-                Reload RhythmQuest
+                {ui('Reload RhythmQuest',language)}
               </button>
 
-              <button
-                type="button"
-                onClick={this.handleResetCache}
-                style={{
-                  background: 'transparent',
-                  color: 'var(--text-secondary, #94a3b8)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  padding: '10px 16px',
-                  borderRadius: '12px',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                }}
-              >
-                Clear Temp Cache
-              </button>
+
             </div>
           </div>
         </div>

@@ -90,7 +90,7 @@ export const AmbientSoundBar: React.FC<AmbientSoundBarProps> = ({ language = 'au
             >
               <IconRenderer name={s.icon} size={14} />
               <span>{s.label}</span>
-              {isSelected && <span style={{ fontSize: '0.7rem' }}>♫</span>}
+              {isSelected && <span style={{ fontSize: '0.7rem' }}></span>}
             </button>
           );
         })}
@@ -116,7 +116,7 @@ export const AmbientSoundBar: React.FC<AmbientSoundBarProps> = ({ language = 'au
             onClick={() => toggleSoundscape(active)}
             title={t('stop_soundscape')}
           >
-            ✕
+
           </button>
         </div>
       )}

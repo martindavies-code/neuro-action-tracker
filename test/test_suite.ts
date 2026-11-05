@@ -145,7 +145,7 @@ describe('2. Gamification & Streak Shield Mechanics', () => {
 
     const tasksWithStreak: TaskItem[] = [
       {
-        ...DEFAULT_TASKS[0],
+        ...DEFAULT_TASKS[0], createdAt:'2026-01-01T00:00:00Z',
         completedDates: [today, yesterday, twoDaysAgo],
       },
     ];
@@ -154,7 +154,7 @@ describe('2. Gamification & Streak Shield Mechanics', () => {
     // If today is not completed yet, but yesterday was -> streak is 1 (alive pending today)
     const pendingToday: TaskItem[] = [
       {
-        ...DEFAULT_TASKS[0],
+        ...DEFAULT_TASKS[0], createdAt:'2026-01-01T00:00:00Z',
         completedDates: [yesterday, twoDaysAgo],
       },
     ];
@@ -163,7 +163,7 @@ describe('2. Gamification & Streak Shield Mechanics', () => {
     // If both today and yesterday missed -> streak resets to 0
     const brokenStreak: TaskItem[] = [
       {
-        ...DEFAULT_TASKS[0],
+        ...DEFAULT_TASKS[0], createdAt:'2026-01-01T00:00:00Z',
         completedDates: [twoDaysAgo],
       },
     ];
@@ -200,10 +200,10 @@ describe('2. Gamification & Streak Shield Mechanics', () => {
   it('awards clean_sweep only when all scheduled tasks for today are done', () => {
     const today = '2026-08-30';
     const tasks: TaskItem[] = [
-      { ...DEFAULT_TASKS[0], completedDates: [today] },
-      { ...DEFAULT_TASKS[1], completedDates: [today] },
+      { ...DEFAULT_TASKS[0], createdAt:'2026-01-01T00:00:00Z', completedDates: [today] },
+      { ...DEFAULT_TASKS[1], createdAt:'2026-01-01T00:00:00Z', completedDates: [today] },
       // Task scheduled for weekdays only (not today Sunday)
-      { ...DEFAULT_TASKS[2], recurrenceType: 'custom_days', daysOfWeek: [1, 2, 3, 4, 5], completedDates: [] },
+      { ...DEFAULT_TASKS[2], createdAt:'2026-01-01T00:00:00Z', recurrenceType: 'custom_days', daysOfWeek: [1, 2, 3, 4, 5], completedDates: [] },
     ];
 
     const badges: Badge[] = [...INITIAL_BADGES];
@@ -215,7 +215,7 @@ describe('2. Gamification & Streak Shield Mechanics', () => {
   it('unlocks hydration_hero badge with multilingual keywords', () => {
     const today = '2026-08-30';
     const spanishTask: TaskItem = {
-      ...DEFAULT_TASKS[0],
+      ...DEFAULT_TASKS[0], createdAt:'2026-01-01T00:00:00Z',
       title: 'Beber 2 vasos de agua',
       completedDates: [today],
     };
@@ -284,7 +284,7 @@ describe('5. Backup JSON Data Integrity & Sanitization', () => {
 
   it('safely handles corrupted or malformed input without throwing', () => {
     assert.strictEqual(importBackupJSON('NOT_JSON_INVALID'), false);
-    assert.strictEqual(importBackupJSON('{}'), true);
+    assert.strictEqual(importBackupJSON('{}'), false);
   });
 });
 
@@ -310,10 +310,10 @@ describe('6. Ambient Soundscape State & Subscription Persistence', () => {
 
 describe('7. Task Search & Multi-criteria Filtering Engine', () => {
   const sampleTasks: TaskItem[] = [
-    { ...DEFAULT_TASKS[0], id: 's1', title: 'Brush teeth & floss', category: 'morning', priority: 'high', completedDates: ['2026-08-30'] },
-    { ...DEFAULT_TASKS[1], id: 's2', title: 'Eat Healthy Salad', category: 'afternoon', priority: 'medium', completedDates: [] },
-    { ...DEFAULT_TASKS[2], id: 's3', title: 'Gentle Yoga Stretch', category: 'evening', priority: 'low', completedDates: [] },
-    { ...DEFAULT_TASKS[0], id: 's4', title: 'Archived task', archived: true, completedDates: [] },
+    { ...DEFAULT_TASKS[0], createdAt:'2026-01-01T00:00:00Z', id: 's1', title: 'Brush teeth & floss', category: 'morning', priority: 'high', completedDates: ['2026-08-30'] },
+    { ...DEFAULT_TASKS[1], createdAt:'2026-01-01T00:00:00Z', id: 's2', title: 'Eat Healthy Salad', category: 'afternoon', priority: 'medium', completedDates: [] },
+    { ...DEFAULT_TASKS[2], createdAt:'2026-01-01T00:00:00Z', id: 's3', title: 'Gentle Yoga Stretch', category: 'evening', priority: 'low', completedDates: [] },
+    { ...DEFAULT_TASKS[0], createdAt:'2026-01-01T00:00:00Z', id: 's4', title: 'Archived task', archived: true, completedDates: [] },
   ];
 
   it('filters by keyword case-insensitively and ignores archived tasks', () => {
@@ -359,8 +359,8 @@ describe('8. Speech Accessibility & Multi-language Locale Resolution', () => {
 describe('9. 7-Day Completion History & Scheduled Calculation Accuracy', () => {
   it('correctly calculates 7-day window and scheduled tasks per day', () => {
     const tasks: TaskItem[] = [
-      { ...DEFAULT_TASKS[0], id: 'hist_1', recurrenceType: 'daily', completedDates: [] },
-      { ...DEFAULT_TASKS[1], id: 'hist_2', recurrenceType: 'custom_days', daysOfWeek: [1, 3, 5], completedDates: [] },
+      { ...DEFAULT_TASKS[0], createdAt:'2026-01-01T00:00:00Z', id: 'hist_1', recurrenceType: 'daily', completedDates: [] },
+      { ...DEFAULT_TASKS[1], createdAt:'2026-01-01T00:00:00Z', id: 'hist_2', recurrenceType: 'custom_days', daysOfWeek: [1, 3, 5], completedDates: [] },
     ];
     const records = getPast7DaysCompletion(tasks);
     assert.strictEqual(records.length, 7);
@@ -724,7 +724,7 @@ describe('20. Performance & Algorithmic Scalability', () => {
     }
 
     const yearTask: TaskItem = {
-      ...DEFAULT_TASKS[0],
+      ...DEFAULT_TASKS[0], createdAt:'2026-01-01T00:00:00Z',
       completedDates,
     };
 

@@ -1,6 +1,7 @@
+import {ui,badgeGoal} from '../services/uiCopy';
 import React, { useMemo } from 'react';
-import type { Badge, DayCompletionRecord, SupportedLanguage, TaskItem, UserStats } from '../types';
-import { getLevelInfo, getCompanionStage } from '../services/gamificationService';
+import type { Badge, DayCompletionRecord, SensorySettings, SupportedLanguage, TaskItem, UserStats } from '../types';
+import { getLevelInfo } from '../services/gamificationService';
 import { getTranslation } from '../services/i18nService';
 import { IconRenderer } from './IconRenderer';
 import { WeeklyBarChart } from './Charts/WeeklyBarChart';
@@ -9,6 +10,7 @@ import { ConsistencyGrid } from './Charts/ConsistencyGrid';
 
 interface ProgressDashboardProps {
   stats: UserStats;
+  settings?: SensorySettings;
   tasks: TaskItem[];
   badges: Badge[];
   past7Days: DayCompletionRecord[];
@@ -18,6 +20,7 @@ interface ProgressDashboardProps {
 
 export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
   stats,
+  settings,
   tasks,
   badges,
   past7Days,
@@ -26,7 +29,6 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
 }) => {
   const t = (key: Parameters<typeof getTranslation>[0]) => getTranslation(key, language);
   const levelInfo = getLevelInfo(stats.xp);
-  const companionInfo = getCompanionStage(undefined, stats.level);
 
   const activeTasks = useMemo(() => tasks.filter((t) => !t.archived), [tasks]);
 
@@ -48,13 +50,15 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
   }, [past7Days, badges]);
 
   return (
-    <div id="progress-dashboard-view" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
+    <div data-quiet={settings?.profile==='quiet'} id="progress-dashboard-view" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+      <section className="next-action"><p className="eyebrow">{ui('Every return is a fresh start',language)}</p><h2>{analytics.totalWeeklyDone} {ui('small actions this week',language)}</h2><p>{ui('Your history is a record, not a score you owe anyone.',language)}</p></section>
+      <details><summary>{ui('Show rewards, streaks & detailed history',language)}</summary>
       {/* 1. HERO MODULE: Level, Next Unlock & Companion Evolution (Solves Flaw #1, #2, #3) */}
       <div className="dash-hero-card" id="dashboard-hero-banner">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div className="level-circle-icon" title={`Level ${levelInfo.level}: ${levelInfo.levelTitle}`}>
+            <div className="level-circle-icon" title={ui('Level',language)+' '+levelInfo.level}>
               <span>{levelInfo.level}</span>
             </div>
             <div>
@@ -63,18 +67,18 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
                   {t('current_rank')}
                 </span>
                 <span className="tag-badge" style={{ background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 }}>
-                  {companionInfo.formattedStage}
+                  {ui('Growth stage',language)} {stats.level>=5?3:stats.level>=3?2:1}
                 </span>
               </div>
               <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', margin: '2px 0 4px' }}>
-                Level {levelInfo.level}: {levelInfo.levelTitle}
+                {ui('Level',language)} {levelInfo.level}
               </h2>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                {stats.xp} Total XP •{' '}
+                {stats.xp} {t('total_xp_earned')} •{' '}
                 <strong style={{ color: 'var(--primary)' }}>
-                  {levelInfo.xpNeededForNext - levelInfo.xpInCurrentLevel} XP needed
+                  {levelInfo.xpNeededForNext - levelInfo.xpInCurrentLevel} {t('xp_to_next_level')}
                 </strong>{' '}
-                to reach Level {levelInfo.level + 1}
+                {ui('Level',language)} {levelInfo.level + 1}
               </p>
             </div>
           </div>
@@ -96,7 +100,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
         {/* Progress Track */}
         <div style={{ marginTop: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-            <span>Progress to Rank {levelInfo.level + 1}</span>
+            <span>{t('progress_to_next_rank')} {levelInfo.level + 1}</span>
             <span>{levelInfo.progressPercent}%</span>
           </div>
           <div className="progress-track" style={{ height: '12px' }}>
@@ -128,7 +132,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
               </div>
               <div>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-                  7-Day Consistency
+                  {ui('Weekly completion',language)}
                 </span>
                 <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   {analytics.weeklyRate}%
@@ -136,12 +140,12 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
               </div>
             </div>
             <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
-              {analytics.totalWeeklyDone} of {analytics.totalWeeklyScheduled} routines completed this week
+              {ui('Completed this week',language)}: {analytics.totalWeeklyDone} / {analytics.totalWeeklyScheduled}
             </p>
           </div>
 
           {/* Signal 2: Active Streak Momentum */}
-          <div className="dash-card dash-metric-card">
+          <div className="dash-card dash-metric-card stat-streak">
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div
                 style={{
@@ -163,17 +167,17 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
                   {t('current_streak_label')}
                 </span>
                 <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  {stats.currentStreak} {t('days_count')}
+                  {stats.currentStreak} {ui(stats.currentStreak===1?'Day':'Days',language)}
                 </div>
               </div>
             </div>
             <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
-              All-time personal best: <strong>{stats.longestStreak} days</strong>
+              {t('best_streak_label')}: <strong>{stats.longestStreak} {ui(stats.longestStreak===1?'Day':'Days',language)}</strong>
             </p>
           </div>
 
           {/* Signal 3: Streak Shields Guarding Momentum */}
-          <div className="dash-card dash-metric-card">
+          <div className="dash-card dash-metric-card stat-streak">
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div
                 style={{
@@ -200,7 +204,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
               </div>
             </div>
             <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
-              Autoprotects rest days at midnight with 0 guilt
+              {ui('A shield protects a missed day when you return.',language)}
             </p>
           </div>
 
@@ -224,7 +228,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
               </div>
               <div>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Total Wins Logged
+                  {ui('All-time completions',language)}
                 </span>
                 <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   {stats.totalCompletions}
@@ -232,7 +236,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
               </div>
             </div>
             <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
-              Across {activeTasks.length} customized brain routines
+              {ui('Active routines',language)}: {activeTasks.length}
             </p>
           </div>
         </div>
@@ -253,10 +257,10 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
           <div>
             <h3 className="dash-card-title" style={{ fontSize: '1.1rem', fontWeight: 800 }}>
               <IconRenderer name="Award" size={20} />
-              <span>Milestone Badges ({analytics.unlockedBadges.length}/{badges.length} Unlocked)</span>
+              <span>{t('badges_label')} ({analytics.unlockedBadges.length}/{badges.length})</span>
             </h3>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              Dopamine milestones unlocked naturally through daily neurodivergent rhythm
+              {ui('Rewards can be hidden without losing progress.',language)}
             </p>
           </div>
         </div>
@@ -265,7 +269,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
         {analytics.unlockedBadges.length > 0 && (
           <div style={{ marginBottom: '20px' }}>
             <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '10px' }}>
-              ✨ Unlocked Badges ({analytics.unlockedBadges.length})
+               {ui('Unlocked',language)} ({analytics.unlockedBadges.length})
             </span>
             <div className="badges-grid">
               {analytics.unlockedBadges.map((badge) => (
@@ -273,11 +277,9 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
                   <div className="badge-icon-box">
                     <IconRenderer name={badge.iconName || 'Award'} size={22} />
                   </div>
-                  <h4 className="badge-title">{badge.title}</h4>
-                  <p className="badge-desc">{badge.description}</p>
-                  <span className="badge-requirement" style={{ color: 'var(--primary)', fontWeight: 800, marginTop: '4px' }}>
-                    ✓ Unlocked
-                  </span>
+                  <h4 className="badge-title">{ui(badge.title,language)}</h4>
+                  <p className="badge-desc">{badgeGoal(badge.id,language)}</p>
+                  <span className="badge-requirement" style={{ color: 'var(--primary)', fontWeight: 800, marginTop: '4px' }}>{ui('Unlocked',language)}</span>
                 </div>
               ))}
             </div>
@@ -288,7 +290,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
         {analytics.inProgressBadges.length > 0 && (
           <div>
             <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '10px' }}>
-              🎯 Next Up to Unlock ({analytics.inProgressBadges.length})
+               {ui('In progress',language)} ({analytics.inProgressBadges.length})
             </span>
             <div className="badges-grid">
               {analytics.inProgressBadges.map((badge) => (
@@ -296,10 +298,10 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
                   <div className="badge-icon-box">
                     <IconRenderer name={badge.iconName || 'Award'} size={22} />
                   </div>
-                  <h4 className="badge-title">{badge.title}</h4>
-                  <p className="badge-desc">{badge.description}</p>
+                  <h4 className="badge-title">{ui(badge.title,language)}</h4>
+                  <p className="badge-desc">{badgeGoal(badge.id,language)}</p>
                   <span className="badge-requirement" style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginTop: '4px' }}>
-                    Goal: {badge.requirement}
+                    {ui('Goal',language)}: {badgeGoal(badge.id,language)}
                   </span>
                 </div>
               ))}
@@ -308,6 +310,7 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
         )}
       </div>
 
+      </details>
     </div>
   );
 };

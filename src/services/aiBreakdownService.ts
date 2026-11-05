@@ -1,4 +1,5 @@
-import type { SubTask } from '../types';
+import {resolveActiveLanguage} from './i18nService';
+import type { SupportedLanguage, SubTask } from '../types';
 
 interface TemplateRule {
   id: string;
@@ -43,7 +44,7 @@ const NEURO_BREAKDOWN_TEMPLATES: TemplateRule[] = [
       'Go to the bathroom and put toothpaste on your brush',
       'Brush top teeth with gentle circular motions for 1 minute',
       'Brush bottom teeth and tongue gently for 1 minute',
-      'Rinse with fresh water and feel that clean, refreshed smile!',
+      'Finish according to your usual dental care routine',
     ],
   },
 
@@ -69,7 +70,7 @@ const NEURO_BREAKDOWN_TEMPLATES: TemplateRule[] = [
     steps: [
       'Grab your favorite clean cup or water bottle',
       'Fill it with fresh, cold or room-temperature water',
-      'Take 4 to 5 slow, refreshing sips and feel the instant energy reset',
+      'Take a sip if you want one',
       'Keep the bottle near your desk or space for easy sipping!',
     ],
   },
@@ -81,7 +82,7 @@ const NEURO_BREAKDOWN_TEMPLATES: TemplateRule[] = [
       'take medication',
       'daily vitamins',
       'take pills',
-      'prescription call',
+
       'tomar medicamentos',
       'prendre médicaments',
       'medikamente einnehmen',
@@ -95,8 +96,8 @@ const NEURO_BREAKDOWN_TEMPLATES: TemplateRule[] = [
     secondaryKeywords: ['meds', 'medication', 'vitamin', 'vitamins', 'pill', 'pills', 'supplement', 'prescript'],
     steps: [
       'Pour a fresh glass of water',
-      'Open your pill organizer or bottle and take your scheduled dose',
-      'Swallow with water and put the bottle back in its designated spot',
+      'Check your existing prescribed plan and the label. If unsure or a dose may already have been taken, ask your pharmacist or clinician before acting',
+      'Follow only your existing instructions, then record the action in your usual way',
       'Give yourself credit for caring for your body today!',
     ],
   },
@@ -240,7 +241,7 @@ const NEURO_BREAKDOWN_TEMPLATES: TemplateRule[] = [
       'Go to the kitchen and pour a glass of water',
       'Choose one simple, low-effort food or 2 easy ingredients',
       'Assemble or heat your meal with zero rush or perfectionism',
-      'Sit down in a comfortable spot, eat, and nourish your brain!',
+      'Sit down in a comfortable spot, and eat.',
     ],
   },
 
@@ -382,6 +383,7 @@ const NEURO_BREAKDOWN_TEMPLATES: TemplateRule[] = [
   },
 ];
 
+const LOCAL_STEPS:Record<string,string[]>={"es": ["Reúne lo que necesitas para esta tarea", "Elige una primera acción pequeña y concreta", "Prueba esa acción durante dos minutos, o menos", "Haz una pausa y decide si quieres continuar"], "fr": ["Rassemble ce dont tu as besoin", "Choisis une première action petite et concrète", "Essaie cette action pendant deux minutes, ou moins", "Fais une pause et décide si tu veux continuer"], "de": ["Lege bereit, was du brauchst", "Wähle eine kleine, konkrete erste Handlung", "Probiere sie zwei Minuten oder kürzer aus", "Mache eine Pause und entscheide, ob du weitermachen möchtest"], "pt": ["Reúne o que precisas para esta tarefa", "Escolhe uma primeira ação pequena e concreta", "Experimenta essa ação durante dois minutos, ou menos", "Faz uma pausa e decide se queres continuar"], "it": ["Prepara quello che ti serve", "Scegli una prima azione piccola e concreta", "Provala per due minuti, o meno", "Fai una pausa e decidi se continuare"], "ja": ["必要なものを手元に置く", "小さく具体的な最初の行動を選ぶ", "2分以内でその行動を試す", "休憩して、続けるかどうか決める"], "zh": ["准备好需要的物品", "选择一个具体的小行动", "尝试这个行动两分钟或更短", "休息一下，再决定是否继续"], "ko": ["필요한 것을 준비하세요", "작고 구체적인 첫 행동을 고르세요", "2분 이내로 그 행동을 시도하세요", "쉬면서 계속할지 결정하세요"]};
 const REGEX_CACHE = new Map<string, RegExp>();
 function getWordBoundaryRegex(kw: string): RegExp {
   let cached = REGEX_CACHE.get(kw);
@@ -397,7 +399,9 @@ function getWordBoundaryRegex(kw: string): RegExp {
  * Generates 3-5 gentle, neuro-affirming micro-steps specifically tailored to the given task.
  * Uses weighted semantic phrase matching so task titles have top priority over generic description words.
  */
-export async function generateMagicSubTasks(taskTitle: string, taskDescription?: string): Promise<SubTask[]> {
+export async function generateMagicSubTasks(taskTitle: string, taskDescription?: string, language:SupportedLanguage='en'): Promise<SubTask[]> {
+  const localized=LOCAL_STEPS[resolveActiveLanguage(language)];
+  if(localized)return localized.map((title,idx)=>({id:`st_${Date.now()}_${idx}`,title,completed:false}));
   const cleanTitle = (taskTitle || '').toLowerCase().trim();
   const cleanDesc = (taskDescription || '').toLowerCase().trim();
 
@@ -440,6 +444,10 @@ export async function generateMagicSubTasks(taskTitle: string, taskDescription?:
     }
   }
 
+  if (/\b(call|phone|renew|renewal|appointment|prescription call|book|collect|refill|pick up)\b/.test(cleanTitle+' '+cleanDesc) && /\b(prescription|doctor|dentist|medical|pharmacy|medication|meds)\b/.test(cleanTitle+' '+cleanDesc)) {
+    return ['Find the correct contact details', 'Write down what you want to ask', 'Make the call or send your request when ready', 'Note the agreed next step'].map((title,idx)=>({id:`st_${Date.now()}_${idx}`,title,completed:false}));
+  }
+
   // 1. Return highest-scoring matched template
   if (bestTemplate) {
     return bestTemplate.steps.map((title, idx) => ({
@@ -473,9 +481,9 @@ export interface TaskDifficultyAssessment {
 }
 
 /**
- * AI Cognitive Effort & Neurodivergent Executive Friction Evaluator.
+ * On-device keyword and effort estimate. This is not a clinical assessment.
  * Analyzes activation resistance (e.g. phone calls, paperwork, deep cleaning),
- * duration, priority, and sub-step complexity to assign fair, dopamine-calibrated XP.
+ * duration, priority, and sub-step complexity to assign fair, adjustable XP.
  */
 export function calculateTaskDifficultyAndXP(
   title: string,
@@ -528,7 +536,7 @@ export function calculateTaskDifficultyAndXP(
     reasons.push('Physical & sensory energy demand');
   } else if (isMicroWin && safeMinutes <= 3) {
     baseScore = 5;
-    reasons.push('Instant dopamine micro-win');
+    reasons.push('Short starting action');
   } else if (isModerate && safeMinutes <= 10) {
     baseScore = 10;
     reasons.push('Daily routine maintenance');
@@ -570,24 +578,24 @@ export function calculateTaskDifficultyAndXP(
   else finalXP = 25;
 
   let tier: TaskDifficultyAssessment['tier'] = 'moderate';
-  let tierLabel = '✨ Focused Routine';
+  let tierLabel = ' Focused Routine';
 
   switch (finalXP) {
     case 5:
       tier = 'micro';
-      tierLabel = '🌱 Micro Win';
+      tierLabel = ' Micro Win';
       break;
     case 10:
       tier = 'quick';
-      tierLabel = '⚡ Quick Win';
+      tierLabel = ' Quick Win';
       break;
     case 15:
       tier = 'moderate';
-      tierLabel = '✨ Focused Routine';
+      tierLabel = ' Focused Routine';
       break;
     case 20:
       tier = 'high';
-      tierLabel = '🔥 High Activation Barrier';
+      tierLabel = ' High Activation Barrier';
       break;
     case 25:
       tier = 'epic';
@@ -599,6 +607,6 @@ export function calculateTaskDifficultyAndXP(
     xp: finalXP,
     tier,
     tierLabel,
-    reason: reasons.join(' • ') || 'Calculated by AI based on cognitive inertia & time',
+    reason: reasons.join(' • ') || 'An adjustable on-device estimate, not a clinical assessment',
   };
 }

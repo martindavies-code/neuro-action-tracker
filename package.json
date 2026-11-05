@@ -1,7 +1,7 @@
 {
   "name": "neuro-action-tracker",
   "private": false,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Gamified, sensory-accessible daily action tracker designed for neurodiverse individuals (ADHD, Autism, executive dysfunction)",
   "homepage": "https://martindavies-code.github.io/neuro-action-tracker/",
   "repository": {
@@ -11,10 +11,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/offline-build.mjs",
     "lint": "oxlint",
-    "test": "vite-node test/test_suite.ts",
-    "preview": "vite preview"
+    "test": "vite-node test/test_suite.ts && vite-node test/review_regressions.ts",
+    "preview": "vite preview",
+    "test:journeys": "python3 test/journeys.py"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",

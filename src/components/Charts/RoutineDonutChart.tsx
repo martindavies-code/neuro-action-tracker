@@ -1,3 +1,4 @@
+import {ui} from '../../services/uiCopy';
 import React, { useMemo } from 'react';
 import type { RoutineCategory, SupportedLanguage, TaskItem } from '../../types';
 import { getTranslation } from '../../services/i18nService';
@@ -8,10 +9,10 @@ interface RoutineDonutChartProps {
 }
 
 const CATEGORY_META: Record<RoutineCategory, { color: string; labelKey: Parameters<typeof getTranslation>[0]; emoji: string }> = {
-  morning: { color: 'var(--accent-sun)', labelKey: 'filter_morning', emoji: '🌅' },
-  afternoon: { color: 'var(--accent-blue)', labelKey: 'filter_afternoon', emoji: '☀️' },
-  evening: { color: 'var(--accent-purple)', labelKey: 'filter_evening', emoji: '🌙' },
-  anytime: { color: 'var(--primary)', labelKey: 'filter_all', emoji: '🕒' },
+  morning: { color: 'var(--accent-sun)', labelKey: 'filter_morning', emoji: '' },
+  afternoon: { color: 'var(--accent-blue)', labelKey: 'filter_afternoon', emoji: '' },
+  evening: { color: 'var(--accent-purple)', labelKey: 'filter_evening', emoji: '' },
+  anytime: { color: 'var(--primary)', labelKey: 'filter_all', emoji: '' },
 };
 
 export const RoutineDonutChart: React.FC<RoutineDonutChartProps> = ({ tasks, language = 'auto' }) => {
@@ -70,7 +71,7 @@ export const RoutineDonutChart: React.FC<RoutineDonutChartProps> = ({ tasks, lan
       <div className="dash-card-header" style={{ marginBottom: '14px' }}>
         <div>
           <h3 className="dash-card-title" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
-            🕒 Daily Routine Balance
+             {ui('Routine distribution',language)}
           </h3>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
             {totalTasks > 0 ? (
@@ -78,10 +79,10 @@ export const RoutineDonutChart: React.FC<RoutineDonutChartProps> = ({ tasks, lan
                 <strong style={{ color: CATEGORY_META[topCategory].color, fontWeight: 700 }}>
                   {CATEGORY_META[topCategory].emoji} {t(CATEGORY_META[topCategory].labelKey)} ({topCategoryPercent}%)
                 </strong>{' '}
-                is your largest energy block across {totalTasks} total routines
+                {ui('Active routines',language)}: {totalTasks}
               </>
             ) : (
-              'Add your first routines to see your time-of-day distribution'
+              ui('No actions yet',language)
             )}
           </p>
         </div>
@@ -99,7 +100,7 @@ export const RoutineDonutChart: React.FC<RoutineDonutChartProps> = ({ tasks, lan
       >
         {/* Donut graphic with high-contrast central callout */}
         <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-          <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+          <svg aria-hidden="true" width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
             {/* Background circle */}
             <circle
               cx={size / 2}
@@ -158,7 +159,7 @@ export const RoutineDonutChart: React.FC<RoutineDonutChartProps> = ({ tasks, lan
               {totalTasks}
             </span>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
-              Routines
+              {ui('Active routines',language)}
             </span>
           </div>
         </div>

@@ -1,103 +1,49 @@
-# 🌟 RhythmQuest — Gamified Action Tracker for Neurodiverse Focus
+# RhythmQuest 1.1
 
-[![Deploy to GitHub Pages](https://github.com/martindavies-code/neuro-action-tracker/actions/workflows/deploy.yml/badge.svg)](https://github.com/martindavies-code/neuro-action-tracker/actions/workflows/deploy.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
-[![React 19](https://img.shields.io/badge/React-19.2-blue.svg)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue.svg)](https://www.typescriptlang.org)
-[![Vite](https://img.shields.io/badge/Vite-8.2-purple.svg)](https://vite.dev)
+A local-first daily action tracker with a single-task focus view and optional game elements.
 
-A gentle, sensory-accessible daily routine tracker designed specifically for individuals with **ADHD**, **Autism**, and **executive dysfunction**. Built with **shame-free streak shields**, **executive friction AI deconstruction**, **adaptive ambient soundscapes**, and **companion mascot evolution**.
+[Open RhythmQuest](https://martindavies-code.github.io/neuro-action-tracker/)
 
----
+## What is included
 
-## ⚡ Live Web Application
+- A temporary tutorial with a one-time 20 XP welcome reward. Choose an empty list, mornings or all seven starter routines. Replaying does not change existing routines or award the bonus again.
+- Daily, one-off and selected-weekday tasks, editable effort rewards and per-day steps. Task creation starts with a title; other fields are optional.
+- An on-device step helper using keyword templates, not a remote AI model or clinical assessment. Suggestions can be edited or removed before use. Non-English output uses safe, general starting steps. Health administration is separate from reminders to follow an existing prescribed plan. Never use this app to decide medication doses.
+- A deadline-based focus timer with pause, two-minute starts and local session recovery. Low and moderate energy filters also apply to Focus and task roulette.
+- Recorded shield-protected dates and creation-aware history. Editing or archiving a task keeps historical schedule/reward snapshots from before that change. Previously deleted tasks or already-overwritten schedules cannot be reconstructed.
+- Quiet, Playful and custom preferences. XP, streaks, celebrations, quotes and companions are independently optional; hiding them does not erase achievements.
+- Four illustrated companions: Pip the Sproutling, Mochi the Fox, Nova the Cosmic Cat and Bubbles the Calm Turtle. Each has three stages.
+- Reduced motion, browser zoom, keyboard-contained dialogs, compact cards, a movable reading guide, optional Lexend and bold word starts. These are personal reading choices, not guaranteed treatments.
+- Chime feedback and synthesized ambient sounds. There are no separate retro/water/bamboo audio packs.
+- English, Spanish, French, German, Japanese, Portuguese, Italian, Chinese and Korean interface dictionaries. Navigation, tutorial, settings, task editing, focus, step previews, analytics, badges, recovery prompts and accessibility labels use the selected language. All eight non-English synthetic journeys and dictionary parity are tested. Companion names, XP and user-authored task content stay unchanged. Translations have not had native-speaker editorial review.
 
-🔗 **[https://martindavies-code.github.io/neuro-action-tracker/](https://martindavies-code.github.io/neuro-action-tracker/)**
+## Data, backup and privacy
 
-*Zero setup required. Runs 100% locally in your browser with offline PWA and HTML5 LocalStorage.*
+Tasks, settings, progress and focus sessions stay in this browser's local storage. There is no account or cloud sync. Clearing site data, private browsing, browser eviction or switching devices can lose this data. Export backups regularly.
 
----
+Import validates and previews task count before replacement and saves a recovery copy first. A pre-1.1 raw snapshot is also kept locally once. Exported JSON contains task titles, descriptions, steps and progress; keep it private if those are sensitive. Save failures are surfaced instead of silently ignored. Recovery copies use the same browser storage and are not a substitute for an exported backup.
 
-## 🌈 Why RhythmQuest?
+Fonts, including a Korean glyph fallback, are bundled locally under their SIL Open Font Licenses. The initial app visit and updates need GitHub Pages. After a complete online load and service-worker installation, the built app shell and lazy chunks are precached for offline use. Read-aloud depends on voices installed on the device. Offline support is tested in Chromium, not guaranteed for every browser/device. An update prompt activates a waiting version only when chosen and leaves local data keys intact.
 
-Traditional task managers often induce guilt, executive paralysis, and shame spirals:
-- Missing one day resets streaks to zero, destroying weeks of motivation.
-- Vague tasks ("clean room", "call doctor") trigger immense dopamine barriers and avoidance.
-- Harsh alerts and flashing notifications overload sensory processing.
+## Development and verification
 
-**RhythmQuest reimagines habit tracking through a neuroaffirming lens:**
-
-1. **🛡️ Shame-Free Streak Shields & Momentum**:
-   - Welcome gift of 2 streak shields upon starting.
-   - Missing a day automatically consumes a shield instead of resetting your streak, preserving your hard-earned progress without guilt.
-   - Earn replacement shields by maintaining consistent streaks.
-
-2. **🪄 AI Micro-Task Breakdown**:
-   - Type any dread-inducing or overwhelming task (e.g., *"call dentist for appointment"*, *"file annual tax receipt"*, *"deep clean kitchen counter"*).
-   - Generates bite-sized, low-activation micro-steps (1–3 minutes each) with cognitive friction analysis and adaptive XP valuation.
-
-3. **🎧 Sensory Accessibility & Ambient Soundscapes**:
-   - Synthesizer-based audio packs: Gentle Chimes, Wooden Bamboo, Cyber Synth, and Calming Lo-Fi.
-   - Integrated ambient generator: Brown Noise, Rain on Leaves, Campfire Warmth, Gentle Waves, and Forest Breeze.
-   - Sensory accommodations: Reduced Motion toggle, OpenDyslexic typeface, Bionic Reading bolding, and Reading Guide ruler.
-
-4. **🐾 Companion Mascot Evolution**:
-   - Choose your focus partner: **Pip the Sprout**, **Nova the Fox**, or **Echo the Owl**.
-   - Your companion grows through 7 evolutionary stages as you earn XP and level up.
-
-5. **🌍 9-Language Localization (100% Key Parity)**:
-   - Full translation support for English, Spanish, French, German, Japanese, Portuguese, Chinese, Italian, and Dutch.
-   - Auto-detects device language with zero friction.
-
-6. **💾 Total Data Sovereignty & Offline Independence**:
-   - Works immediately offline via HTML5 LocalStorage and Service Workers.
-   - Instant JSON Backup export and restore with schema sanitization.
-   - Complete client-side operation with zero external hosting dependencies.
-
----
-
-## 🧪 Automated Testing Suite
-
-RhythmQuest includes a comprehensive 20-suite, 51-test runner verifying scheduling, gamification math, AI decomposition, security sanitization, and accessibility invariants:
-
-```bash
+```sh
+npm ci
 npm test
+npm run lint
+npm run build
 ```
 
-### Verified Test Suites (51/51 Passing):
-- `1. Task Scheduling & Lifecycle Engine` (daily, one-off, and custom recurrence)
-- `2. Gamification & Streak Shield Mechanics` (momentum protection & boundary logic)
-- `3. AI Micro-Task Breakdown Service` (phrase matching & structured decomposition)
-- `4. Localization (i18n) Complete Parity Check` (9 languages, 100% key parity)
-- `5. Backup JSON Data Integrity & Sanitization` (malformed input immunity)
-- `6. Ambient Soundscape State & Subscription Persistence`
-- `7. Task Search & Multi-criteria Filtering Engine`
-- `8. Speech Accessibility & Multi-language Locale Resolution`
-- `9. 7-Day Completion History & Scheduled Calculation Accuracy`
-- `10. Speech Completion & Callback Lifecycle`
-- `11. Client-Side Offline Storage & Environment Resilience`
-- `12. AI Task Difficulty & Executive Friction XP Evaluator`
-- `13. Companion Mascot Evolution Consistency`
-- `14. Magic Wand Clean Icon Parity across All Languages`
-- `15. Focus Mode Invariants & Timezone-Safe Date Math`
-- `16. Security & Sanitisation - Prototype Pollution & Injection Defense`
-- `17. IconRenderer Defense & Safe Prototype Resolution`
-- `18. Web Audio & Synthesizer Input Resilience`
-- `19. Speech Synthesis Watchdog & Input Boundary Defense`
-- `20. Performance & Algorithmic Scalability`
+Optional synthetic browser journeys:
 
----
+```sh
+pip install playwright
+# Install Chromium or adjust executable_path in test/journeys.py.
+npm run build
+npm run test:journeys
+python3 test/languages.py
+```
 
-## 🚀 Official Deployment: GitHub Pages
+The existing 51 service tests remain, with fixed historical fixtures, plus targeted regressions for shields, historical schedules, zero XP, imports/rollback, settings and translated step output. Browser journeys use isolated synthetic data, not a user's saved tasks. They cover tutorial replay, create/complete/undo, timer recovery, keyboard containment, comfort controls and offline reload at 320/390/1280 widths. This is not a full screen-reader or physical-device audit.
 
-The application is deployed directly to **GitHub Pages** as the single authoritative production version:
-
-- **Live URL**: [https://martindavies-code.github.io/neuro-action-tracker/](https://martindavies-code.github.io/neuro-action-tracker/)
-- **Automated Pipeline**: Every commit pushed to `main` triggers GitHub Actions to run the full test suite, compile the optimized bundle, and deploy to `gh-pages`.
-- **Zero Local Setup Needed**: Open the link in any mobile or desktop browser to use the full application immediately.
-
----
-
-## 📄 License
-
-MIT License. Crafted for neurodiverse minds with kindness and focus.
+The existing main-to-GitHub-Pages deployment and repository synchronization rules are unchanged. See AGENTS.md and DEPLOYMENT.md. MIT license for application code; font licenses are in src/assets.

@@ -1,5 +1,7 @@
+import {ui} from '../../services/uiCopy';
+import {resolveActiveLanguage} from '../../services/i18nService';
 import React, { useMemo } from 'react';
-import { getDateMinusDays } from '../../services/storageService';
+import { getDateMinusDays, getPast7DaysCompletion, taskCreatedDate } from '../../services/storageService';
 import { getTranslation } from '../../services/i18nService';
 import type { SupportedLanguage, TaskItem } from '../../types';
 
@@ -10,7 +12,8 @@ interface ConsistencyGridProps {
 
 export const ConsistencyGrid: React.FC<ConsistencyGridProps> = ({ tasks, language = 'auto' }) => {
   const t = (key: Parameters<typeof getTranslation>[0]) => getTranslation(key, language);
-  const activeTasks = tasks.filter((t) => !t.archived);
+  const activeTasks = tasks;
+  const first=tasks.map(taskCreatedDate).filter(Boolean).sort()[0];
   const totalDays = 28; // 4 weeks
 
   const { dayBoxes, activeDaysCount, consistencyPercent, totalCompletedInMonth } = useMemo(() => {
@@ -20,6 +23,7 @@ export const ConsistencyGrid: React.FC<ConsistencyGridProps> = ({ tasks, languag
 
     for (let i = totalDays - 1; i >= 0; i--) {
       const dateStr = getDateMinusDays(i);
+      if(!first || dateStr<first)continue;
       const completedCount = activeTasks.filter(
         (t) => Array.isArray(t.completedDates) && t.completedDates.includes(dateStr)
       ).length;
@@ -29,7 +33,8 @@ export const ConsistencyGrid: React.FC<ConsistencyGridProps> = ({ tasks, languag
         totalCompleted += completedCount;
       }
 
-      const ratio = activeTasks.length > 0 ? completedCount / activeTasks.length : 0;
+      const record=getPast7DaysCompletion(activeTasks,dateStr,1)[0];
+      const ratio=record.totalAvailable?record.completedCount/record.totalAvailable:0;
 
       let bg = 'var(--bg-surface-subtle)';
       let border = 'var(--border-subtle)';
@@ -56,16 +61,16 @@ export const ConsistencyGrid: React.FC<ConsistencyGridProps> = ({ tasks, languag
       });
     }
 
-    const pct = Math.round((activeDays / totalDays) * 100);
+    const pct = boxes.length ? Math.round((activeDays / boxes.length) * 100) : 0;
     return {
       dayBoxes: boxes,
       activeDaysCount: activeDays,
       consistencyPercent: pct,
       totalCompletedInMonth: totalCompleted,
     };
-  }, [activeTasks, totalDays]);
+  }, [activeTasks, totalDays,first]);
 
-  const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const weekdays = Array.from({length:7},(_,i)=>new Date(2026,10,2+i).toLocaleDateString(resolveActiveLanguage(language),{weekday:'short'}));
 
   return (
     <div className="dash-card chart-card" id="consistency-grid-card">
@@ -73,13 +78,13 @@ export const ConsistencyGrid: React.FC<ConsistencyGridProps> = ({ tasks, languag
       <div className="dash-card-header" style={{ marginBottom: '14px' }}>
         <div>
           <h3 className="dash-card-title" style={{ fontSize: '1.05rem', fontWeight: 700 }}>
-            🗓️ 28-Day Habit Momentum Matrix
+             {ui('Last 28 days',language)}
           </h3>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
             <strong style={{ color: 'var(--primary)', fontWeight: 700 }}>
-              {activeDaysCount} of 28 days active ({consistencyPercent}%)
+              {ui('Active days',language)}: {activeDaysCount} / {dayBoxes.length} ({consistencyPercent}%)
             </strong>{' '}
-            • {totalCompletedInMonth} routine check-ins recorded over the last 4 weeks
+            • {ui('Done',language)}: {totalCompletedInMonth}
           </p>
         </div>
       </div>
@@ -110,10 +115,11 @@ export const ConsistencyGrid: React.FC<ConsistencyGridProps> = ({ tasks, languag
           gap: '8px',
         }}
       >
+        {dayBoxes.length>0&&Array.from({length:(new Date(dayBoxes[0].dateStr+'T12:00:00').getDay()+6)%7},(_,i)=><div key={'empty-'+i}/>)}
         {dayBoxes.map((box) => (
           <div
             key={box.dateStr}
-            title={`${box.dateStr}: ${box.completedCount} routines completed`}
+            title={`${box.dateStr}: ${box.completedCount} ${ui('Done',language)}`}
             style={{
               aspectRatio: '1',
               borderRadius: 'var(--radius-sm)',
@@ -149,7 +155,7 @@ export const ConsistencyGrid: React.FC<ConsistencyGridProps> = ({ tasks, languag
           gap: '8px',
         }}
       >
-        <span>Daily completion intensity</span>
+        <span>{ui('Daily completion intensity',language)}</span>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span>{t('less_active')}</span>
           <span
@@ -160,7 +166,7 @@ export const ConsistencyGrid: React.FC<ConsistencyGridProps> = ({ tasks, languag
               borderRadius: '3px',
               border: '1px solid var(--border-subtle)',
             }}
-            title="0 tasks done"
+            title="0"
           />
           <span
             style={{
@@ -170,7 +176,7 @@ export const ConsistencyGrid: React.FC<ConsistencyGridProps> = ({ tasks, languag
               borderRadius: '3px',
               border: '1px solid var(--border-medium)',
             }}
-            title="1–39% of routines"
+            title="1–39%"
           />
           <span
             style={{
@@ -179,7 +185,7 @@ export const ConsistencyGrid: React.FC<ConsistencyGridProps> = ({ tasks, languag
               background: 'var(--primary-hover)',
               borderRadius: '3px',
             }}
-            title="40–79% of routines"
+            title="40–79%"
           />
           <span
             style={{
@@ -188,7 +194,7 @@ export const ConsistencyGrid: React.FC<ConsistencyGridProps> = ({ tasks, languag
               background: 'var(--primary)',
               borderRadius: '3px',
             }}
-            title="80–100% of routines"
+            title="80–100%"
           />
           <span>{t('more_active')}</span>
         </div>

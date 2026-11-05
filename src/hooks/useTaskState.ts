@@ -1,8 +1,11 @@
+import {ui} from '../services/uiCopy';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { TaskItem, UserStats, Badge, SensorySettings, SubTask, Priority } from '../types';
-import { generateMagicSubTasks, calculateTaskDifficultyAndXP } from '../services/aiBreakdownService';
+import { calculateTaskDifficultyAndXP } from '../services/aiBreakdownService';
 import {
   DEFAULT_TASKS,
+  preserveTaskHistory,
+  prepareUpgradeRecovery,
   getPast7DaysCompletion,
   getTodayDateString,
   loadBadges,
@@ -15,22 +18,23 @@ import {
   saveTasks,
   resetAllData,
   importBackupJSON,
-  exportBackupJSON,
+
 } from '../services/storageService';
 import { sound } from '../services/soundService';
 import { checkNewBadges, getLevelInfo, calculateDailyStreak, calculateStreakFromTasks } from '../services/gamificationService';
 import { triggerCelebration } from '../components/ConfettiBurst';
-import { getTranslation } from '../services/i18nService';
+import { getTranslation,resolveActiveLanguage } from '../services/i18nService';
 
 export function useTaskState(
   showToast: (msg: string) => void,
   focusTask: TaskItem | null,
   setFocusTask: React.Dispatch<React.SetStateAction<TaskItem | null>>
 ) {
-  const [tasks, setTasks] = useState<TaskItem[]>(() => loadTasks());
+  const [tasks, setTasks] = useState<TaskItem[]>(() => {prepareUpgradeRecovery();return loadTasks()});
+  useEffect(()=>{const reload=()=>setTasks(loadTasks());window.addEventListener('rhythm-reload-tasks',reload);return()=>window.removeEventListener('rhythm-reload-tasks',reload)},[]);
   const [settings, setSettings] = useState<SensorySettings>(() => loadSettings());
   const [todayStr, setTodayStr] = useState<string>(() => getTodayDateString());
-  
+
   const [stats, setStats] = useState<UserStats>(() => {
     const raw = loadStats();
     const { updatedStats } = calculateDailyStreak(raw, getTodayDateString());
@@ -39,7 +43,7 @@ export function useTaskState(
   });
   const [badges, setBadges] = useState<Badge[]>(() => loadBadges());
 
-  const past7Days = useMemo(() => getPast7DaysCompletion(tasks), [tasks]);
+  const past7Days = useMemo(() => getPast7DaysCompletion(tasks,todayStr), [tasks, todayStr]);
 
   // Automated Midnight Rollover & Shield Consumer Watcher
   useEffect(() => {
@@ -51,16 +55,16 @@ export function useTaskState(
         setStats(updatedStats);
         saveStats(updatedStats);
         if (usedShield) {
-          showToast('🛡️ A streak shield protected your momentum overnight!');
+          showToast(ui('Shield protected your streak',settings.language));
         }
       }
     }, 30000);
     return () => clearInterval(interval);
-  }, [todayStr, stats, showToast]);
+  }, [todayStr, stats, showToast,settings.language]);
 
   // Pure derived stats with accurate real-time streak
   const computedStats: UserStats = useMemo(() => {
-    const dynamicStreak = calculateStreakFromTasks(tasks, todayStr);
+    const dynamicStreak = calculateStreakFromTasks(tasks, todayStr, stats.protectedDates);
     return {
       ...stats,
       currentStreak: dynamicStreak,
@@ -70,7 +74,12 @@ export function useTaskState(
 
   // Sync settings with DOM & Sound
   useEffect(() => {
+    document.documentElement.lang=resolveActiveLanguage(settings.language);
     document.documentElement.setAttribute('data-theme', settings.theme);
+    document.documentElement.setAttribute('data-compact', String(settings.compactView));
+    document.documentElement.setAttribute('data-show-xp', String(settings.showXp!==false));
+    document.documentElement.setAttribute('data-show-streaks', String(settings.showStreaks!==false));
+    document.documentElement.setAttribute('data-show-quotes', String(settings.showQuotes!==false));
     document.documentElement.setAttribute('data-dyslexic', String(settings.dyslexicFont));
     document.documentElement.setAttribute('data-reduced-motion', String(settings.reducedMotion));
     sound.updateSettings(settings.soundEnabled, settings.soundVolume);
@@ -115,18 +124,18 @@ export function useTaskState(
     const prevLevelInfo = getLevelInfo(stats.xp);
     const newLevelInfo = getLevelInfo(newXp);
 
-    if (newLevelInfo.level > prevLevelInfo.level) {
+    if (settings.showXp!==false && newLevelInfo.level > prevLevelInfo.level) {
       sound.playLevelUp();
-      showToast(`🎉 Level Up! You reached Level ${newLevelInfo.level}: ${newLevelInfo.levelTitle}!`);
+      showToast(ui('Level',settings.language)+' '+newLevelInfo.level);
     }
 
-    const dynamicStreak = calculateStreakFromTasks(updatedTasks, todayStr);
+    const dynamicStreak = calculateStreakFromTasks(updatedTasks, todayStr, stats.protectedDates);
     const longestStreak = Math.max(stats.longestStreak, dynamicStreak);
 
     let newShields = stats.streakShields;
     if (dynamicStreak >= 3 && dynamicStreak % 3 === 0 && dynamicStreak > stats.currentStreak && newShields < 3) {
       newShields += 1;
-      showToast(`🛡️ +1 Streak Shield Crafted! (You hit a ${dynamicStreak}-day rhythm)`);
+      if(settings.showStreaks!==false)showToast(ui('Shield earned',settings.language));
     }
 
     const newStats: UserStats = {
@@ -139,6 +148,7 @@ export function useTaskState(
       streakShields: newShields,
       totalCompletions: Math.max(0, stats.totalCompletions + completionsDiff),
       lastActiveDate: todayStr,
+      shieldCheckedDate: todayStr,
     };
     setStats(newStats);
     saveStats(newStats);
@@ -151,10 +161,11 @@ export function useTaskState(
       { usedFocusMode: fromFocusMode }
     );
 
-    if (newlyUnlocked.length > 0) {
+    setBadges(updatedBadges);saveBadges(updatedBadges);
+    if (settings.showCelebrations!==false && newlyUnlocked.length > 0) {
       sound.playBadge();
       newlyUnlocked.forEach((b) => {
-        showToast(`🏆 Badge Unlocked: ${b.title} - ${b.description}`);
+        showToast(ui('Unlocked',settings.language)+': '+ui(b.title,settings.language));
       });
       setBadges(updatedBadges);
       saveBadges(updatedBadges);
@@ -166,7 +177,7 @@ export function useTaskState(
       if (t.id !== taskId) return t;
       const currentSubs = t.subTasks || [];
       const updatedSubTasks = currentSubs.map((st) =>
-        st.id === subTaskId ? { ...st, completed: !st.completed } : st
+        st.id === subTaskId ? { ...st, completed: !(st.completedDates || []).includes(todayStr), completedDates: (st.completedDates || []).includes(todayStr) ? (st.completedDates || []).filter(d=>d!==todayStr) : [...(st.completedDates || []),todayStr] } : st
       );
       const updatedTask = { ...t, subTasks: updatedSubTasks };
       if (focusTask && focusTask.id === taskId) {
@@ -177,7 +188,7 @@ export function useTaskState(
     setTasks(updated);
     saveTasks(updated);
     sound.playPop();
-  }, [tasks, focusTask, setFocusTask]);
+  }, [tasks, focusTask, setFocusTask, todayStr]);
 
   const handleAddSubTask = useCallback((taskId: string, title: string) => {
     const updated = tasks.map((t) => {
@@ -194,23 +205,6 @@ export function useTaskState(
     saveTasks(updated);
     sound.playPop();
   }, [tasks, focusTask, setFocusTask]);
-
-  const handleBreakdownTask = useCallback(async (task: TaskItem) => {
-    sound.playPop();
-    const generated = await generateMagicSubTasks(task.title, task.description);
-    const updated = tasks.map((t) => {
-      if (t.id !== task.id) return t;
-      const updatedTask = { ...t, subTasks: generated };
-      if (focusTask && focusTask.id === task.id) {
-        setFocusTask(updatedTask);
-      }
-      return updatedTask;
-    });
-    setTasks(updated);
-    saveTasks(updated);
-    sound.playLevelUp();
-    showToast(`🪄 AI broke "${task.title}" into ${generated.length} gentle steps!`);
-  }, [tasks, focusTask, setFocusTask, showToast]);
 
   const handleSetSubTasks = useCallback((taskId: string, subTasks: SubTask[]) => {
     const updated = tasks.map((t) => {
@@ -230,18 +224,18 @@ export function useTaskState(
 
     if (editingTask) {
       updated = tasks.map((t) =>
-        t.id === editingTask.id ? ({ ...t, ...taskData } as TaskItem) : t
+        t.id === editingTask.id ? ({ ...t, ...taskData, history: preserveTaskHistory(t,todayStr) } as TaskItem) : t
       );
       setTasks(updated);
       saveTasks(updated);
-      showToast('Task updated successfully.');
+      showToast(ui('Task saved',settings.language));
     } else {
       const finalMinutes = taskData.estimatedMinutes || 5;
       const finalPriority = taskData.priority || 'medium';
       const finalTitle = taskData.title || 'New Task';
       const finalDesc = taskData.description || '';
       const finalSubTasks = taskData.subTasks || [];
-      const computedXP = taskData.xpValue || calculateTaskDifficultyAndXP(finalTitle, finalDesc, finalMinutes, finalPriority, finalSubTasks.length).xp;
+      const computedXP = taskData.xpValue ?? calculateTaskDifficultyAndXP(finalTitle, finalDesc, finalMinutes, finalPriority, finalSubTasks.length).xp;
 
       const newTask: TaskItem = {
         id: 'task_' + Date.now(),
@@ -266,7 +260,7 @@ export function useTaskState(
       setTasks(updated);
       saveTasks(updated);
       sound.playPop();
-      showToast(`✨ Created "${newTask.title}" (+${newTask.xpValue} XP reward)!`);
+      showToast(ui('Task saved',settings.language)+': '+newTask.title);
 
       const { updatedBadges, newlyUnlocked } = checkNewBadges(
         stats,
@@ -275,23 +269,24 @@ export function useTaskState(
         badges,
         { createdCustom: true }
       );
-      if (newlyUnlocked.length > 0) {
+      setBadges(updatedBadges);saveBadges(updatedBadges);
+    if (settings.showCelebrations!==false && newlyUnlocked.length > 0) {
         sound.playBadge();
         newlyUnlocked.forEach((b) => {
-          showToast(`🏆 Badge Unlocked: ${b.title}!`);
+          showToast(ui('Unlocked',settings.language)+': '+ui(b.title,settings.language));
         });
         setBadges(updatedBadges);
         saveBadges(updatedBadges);
       }
     }
-  }, [tasks, stats, badges, todayStr, showToast]);
+  }, [tasks, stats, badges, settings, todayStr, showToast]);
 
   const handleDirectAddTask = useCallback((taskData: Partial<TaskItem>): TaskItem => {
     const finalMinutes = taskData.estimatedMinutes || 5;
     const finalPriority = taskData.priority || 'high';
     const finalTitle = taskData.title || 'Practice Task';
     const finalDesc = taskData.description || '';
-    const finalXP = taskData.xpValue || calculateTaskDifficultyAndXP(finalTitle, finalDesc, finalMinutes, finalPriority, taskData.subTasks?.length || 0).xp;
+    const finalXP = taskData.xpValue ?? calculateTaskDifficultyAndXP(finalTitle, finalDesc, finalMinutes, finalPriority, taskData.subTasks?.length || 0).xp;
 
     const newTask: TaskItem = {
       id: 'task_onboard_' + Date.now(),
@@ -319,11 +314,11 @@ export function useTaskState(
   }, [tasks]);
 
   const handleDeleteTask = useCallback((taskId: string) => {
-    const updated = tasks.filter((t) => t.id !== taskId);
+    const updated = tasks.map((t) => t.id === taskId ? {...t,archived:true,archivedAt:todayStr,history:preserveTaskHistory(t,todayStr)} : t);
     setTasks(updated);
     saveTasks(updated);
-    showToast('Task removed.');
-  }, [tasks, showToast]);
+    showToast(ui('Task archived',settings.language));
+  }, [tasks, todayStr, showToast,settings.language]);
 
   const handleChangePriority = useCallback((taskId: string, newPriority: Priority) => {
     const updated = tasks.map((t) => (t.id === taskId ? { ...t, priority: newPriority } : t));
@@ -332,7 +327,7 @@ export function useTaskState(
   }, [tasks]);
 
   const handleExportJSON = useCallback(() => {
-    const json = exportBackupJSON();
+    const json = JSON.stringify({version:'1.1.0',exportedAt:new Date().toISOString(),tasks,settings,stats,badges},null,2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -340,8 +335,8 @@ export function useTaskState(
     a.download = `rhythmquest_backup_${todayStr}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    showToast('✓ Backup exported successfully.');
-  }, [todayStr, showToast]);
+    showToast(ui('Backup exported',settings.language));
+  }, [todayStr, showToast,tasks,settings,stats,badges]);
 
   const handleImportJSON = useCallback((jsonStr: string) => {
     const success = importBackupJSON(jsonStr);
@@ -354,11 +349,11 @@ export function useTaskState(
       setSettings(loadedSettings);
       setStats(loadedStats);
       setBadges(loadedBadges);
-      showToast('✓ Backup restored successfully.');
+      showToast(ui('Backup restored',settings.language));
     } else {
-      alert('Invalid backup JSON format.');
+      alert(ui('Invalid backup. Nothing was changed.',settings.language));
     }
-  }, [showToast]);
+  }, [showToast,settings.language]);
 
   const handleResetData = useCallback(() => {
     const confirmMsg = getTranslation('confirm_reset_account', settings.language);
@@ -372,7 +367,7 @@ export function useTaskState(
       setSettings(defaultSettings);
       setStats(defaultStats);
       setBadges(defaultBadges);
-      showToast('✓ Reset to default tasks and settings.');
+      showToast(ui('Settings reset',settings.language));
     }
   }, [settings.language, showToast]);
 
@@ -392,7 +387,6 @@ export function useTaskState(
     handleToggleComplete,
     handleToggleSubTask,
     handleAddSubTask,
-    handleBreakdownTask,
     handleSetSubTasks,
     handleSaveTask,
     handleDirectAddTask,

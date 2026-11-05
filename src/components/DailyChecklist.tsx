@@ -1,5 +1,6 @@
+import {ui} from '../services/uiCopy';
 import React, { useState } from 'react';
-import type { SensorySettings, SupportedLanguage, TaskItem, UserStats } from '../types';
+import type { SensorySettings, SupportedLanguage, TaskItem, UserStats, SubTask } from '../types';
 import { IconRenderer } from './IconRenderer';
 import { TaskCard } from './TaskCard';
 import { CompanionWidget } from './CompanionWidget';
@@ -25,7 +26,7 @@ interface DailyChecklistProps {
   onOpenSpinner: () => void;
   onOpenCommandPalette: () => void;
   onToggleSubTask?: (taskId: string, subTaskId: string) => void;
-  onBreakdownTask?: (task: TaskItem) => void;
+  onSetSubTasks?: (taskId:string,steps:SubTask[]) => void;
 }
 
 export const DailyChecklist: React.FC<DailyChecklistProps> = ({
@@ -44,7 +45,7 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
   onOpenSpinner,
   onOpenCommandPalette,
   onToggleSubTask,
-  onBreakdownTask,
+  onSetSubTasks,
 }) => {
   const currentLang = language || settings.language || 'auto';
   const t = (key: Parameters<typeof getTranslation>[0]) => getTranslation(key, currentLang);
@@ -99,7 +100,7 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
   const totalTasks = todayTasksList.length;
   const progressPercent = totalTasks > 0 ? Math.round((completedTodayCount / totalTasks) * 100) : 0;
 
-  const incompleteTasks = todayTasksList.filter((taskItem) => !taskItem.completedDates.includes(todayStr));
+  const incompleteTasks = todayTasksList.filter((taskItem) => !taskItem.completedDates.includes(todayStr)).filter(t=>settings.energyBattery==='low'?(t.estimatedMinutes||5)<=5&&t.priority!=='high':settings.energyBattery==='moderate'?(t.estimatedMinutes||5)<=15:true);
 
   React.useEffect(() => {
     if (totalTasks > 0 && completedTodayCount === totalTasks && !hasCelebratedAllDoneRef.current) {
@@ -113,6 +114,15 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
   return (
     <div>
       {/* Companion Encourager with Custom Species & TTS */}
+      <section className="next-action">
+        <p className="eyebrow">{ui('Your next small step',settings.language)}</p>
+        <h2>{incompleteTasks[0]?.title || ui('What is one thing you want to do?',settings.language)}</h2>
+        <p>{ui('Two minutes is a start. Everything else can wait.',settings.language)}</p>
+        <button className="btn-primary" onClick={()=>incompleteTasks[0]?onFocusTask(incompleteTasks[0]):onOpenCreateModal()}>{incompleteTasks[0]?'Start this action':'Add my first action'}</button>
+      </section>
+      <SpoonBatteryWidget battery={settings.energyBattery} language={settings.language} onChangeBattery={b=>onUpdateSettings({energyBattery:b,energyCheckedDate:todayStr})}/>
+      {settings.energyCheckedDate!==todayStr&&<p className="energy-prompt">{ui('Your saved energy choice stays yours. Check in when ready.',settings.language)}</p>}
+      <details className="comfort-drawer"><summary>{ui('Companion & focus sounds',settings.language)}</summary>
       {settings.showCompanion && (
         <CompanionWidget
           stats={stats}
@@ -122,16 +132,8 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
         />
       )}
 
-      {/* Autistic Spoon Theory / Sensory Battery Widget */}
-      <SpoonBatteryWidget
-        battery={settings.energyBattery}
-        language={settings.language}
-        onChangeBattery={(b) => onUpdateSettings({ energyBattery: b })}
-      />
-
-      {/* Ambient Lo-Fi / Soundscape Focus Bar */}
-      <AmbientSoundBar language={settings.language} />
-
+      <AmbientSoundBar language={settings.language}/>
+      </details>
       {/* Daily Progress & Motivation Banner */}
       <div
         style={{
@@ -159,7 +161,7 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
             <button
               className="btn-secondary"
               onClick={onOpenCommandPalette}
-              title="Search & Filter Tasks (Ctrl+K)"
+              title={t('command_menu_btn')}
               id="search-tasks-btn"
               style={{ padding: '6px 10px', fontSize: '0.82rem' }}
             >
@@ -172,18 +174,18 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
                 <button
                   className="btn-secondary"
                   onClick={onOpenSpinner}
-                  title="Overcome task paralysis with the Wheel of Small Wins"
+                  title={t('task_roulette_btn')}
                   id="open-spinner-btn"
                   style={{ borderColor: 'var(--accent-sun)', color: 'var(--accent-sun)', padding: '6px 10px', fontSize: '0.82rem' }}
                 >
                   <IconRenderer name="Zap" size={14} />
-                  <span>{t('task_roulette_btn')} 🎲</span>
+                  <span>{t('task_roulette_btn')} </span>
                 </button>
 
                 <button
                   className="btn-secondary"
                   onClick={onStartFocusMode}
-                  title="Focus on 1 single task at a time to reduce overwhelm"
+                  title={t('focus_spotlight_btn')}
                   id="start-focus-mode-btn"
                   style={{ padding: '6px 10px', fontSize: '0.82rem' }}
                 >
@@ -227,31 +229,31 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
             className={`filter-pill ${selectedFilter === 'one-off' ? 'active' : ''}`}
             onClick={() => setSelectedFilter('one-off')}
           >
-            📌 {t('filter_oneoff')}
+             {t('filter_oneoff')}
           </button>
           <button
             className={`filter-pill ${selectedFilter === 'morning' ? 'active' : ''}`}
             onClick={() => setSelectedFilter('morning')}
           >
-            🌅 {t('filter_morning')}
+             {t('filter_morning')}
           </button>
           <button
             className={`filter-pill ${selectedFilter === 'afternoon' ? 'active' : ''}`}
             onClick={() => setSelectedFilter('afternoon')}
           >
-            ☀️ {t('filter_afternoon')}
+             {t('filter_afternoon')}
           </button>
           <button
             className={`filter-pill ${selectedFilter === 'evening' ? 'active' : ''}`}
             onClick={() => setSelectedFilter('evening')}
           >
-            🌙 {t('filter_evening')}
+             {t('filter_evening')}
           </button>
           <button
             className={`filter-pill ${selectedFilter === 'all' ? 'active' : ''}`}
             onClick={() => setSelectedFilter('all')}
           >
-            📅 {t('filter_all')} ({activeTasks.length})
+             {t('filter_all')} ({activeTasks.length})
           </button>
         </div>
 
@@ -264,9 +266,9 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
             style={{ padding: '4px 10px', fontSize: '0.82rem', minHeight: '34px' }}
           >
             <option value="all">{t('priority_all')}</option>
-            <option value="high">🔥 {t('priority_high')}</option>
-            <option value="medium">⚡ {t('priority_medium')}</option>
-            <option value="low">🌿 {t('priority_low')}</option>
+            <option value="high"> {t('priority_high')}</option>
+            <option value="medium"> {t('priority_medium')}</option>
+            <option value="low"> {t('priority_low')}</option>
           </select>
         </div>
       </div>
@@ -313,7 +315,7 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
           filteredTasks.map((task) => (
             <TaskCard
               key={task.id}
-              task={task}
+              task={{...task,subTasks:task.subTasks?.map(st=>({...st,completed:(st.completedDates||[]).includes(todayStr)}))}}
               isCompletedToday={task.completedDates.includes(todayStr)}
               language={settings.language}
               bionicReading={settings.bionicReading}
@@ -322,7 +324,7 @@ export const DailyChecklist: React.FC<DailyChecklistProps> = ({
               onEditTask={onEditTask}
               onDeleteTask={onDeleteTask}
               onToggleSubTask={onToggleSubTask}
-              onBreakdownTask={onBreakdownTask}
+              onSetSubTasks={onSetSubTasks}
             />
           ))
         )}

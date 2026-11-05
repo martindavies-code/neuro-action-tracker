@@ -1,6 +1,8 @@
+import {StepHelper} from './StepHelper';
+import {ui} from '../services/uiCopy';
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import type { SupportedLanguage, TaskItem } from '../types';
+import type { SupportedLanguage, TaskItem, SubTask } from '../types';
 import { speechService } from '../services/speechService';
 import { IconRenderer } from './IconRenderer';
 import { BionicText } from './BionicText';
@@ -16,7 +18,7 @@ interface TaskCardProps {
   onEditTask: (task: TaskItem) => void;
   onDeleteTask: (taskId: string) => void;
   onToggleSubTask?: (taskId: string, subTaskId: string) => void;
-  onBreakdownTask?: (task: TaskItem) => void;
+  onSetSubTasks?: (taskId:string,steps:SubTask[]) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
@@ -29,7 +31,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onEditTask,
   onDeleteTask,
   onToggleSubTask,
-  onBreakdownTask,
+  onSetSubTasks,
 }) => {
   const t = (key: Parameters<typeof getTranslation>[0]) => getTranslation(key, language);
   const [showSubTasks, setShowSubTasks] = useState(false);
@@ -63,11 +65,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const getPriorityTag = () => {
     switch (task.priority) {
       case 'high':
-        return <span className="tag-badge tag-priority-high">🔥 {t('priority_high')}</span>;
+        return <span className="tag-badge tag-priority-high"> {t('priority_high')}</span>;
       case 'medium':
-        return <span className="tag-badge tag-priority-medium">⚡ {t('priority_medium')}</span>;
+        return <span className="tag-badge tag-priority-medium"> {t('priority_medium')}</span>;
       case 'low':
-        return <span className="tag-badge tag-priority-low">🌿 {t('priority_low')}</span>;
+        return <span className="tag-badge tag-priority-low"> {t('priority_low')}</span>;
       default:
         return null;
     }
@@ -76,13 +78,13 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const getCategoryLabel = () => {
     switch (task.category) {
       case 'morning':
-        return `🌅 ${t('filter_morning')}`;
+        return ` ${t('filter_morning')}`;
       case 'afternoon':
-        return `☀️ ${t('filter_afternoon')}`;
+        return ` ${t('filter_afternoon')}`;
       case 'evening':
-        return `🌙 ${t('filter_evening')}`;
+        return ` ${t('filter_evening')}`;
       case 'anytime':
-        return `🕒 ${t('filter_all')}`;
+        return ` ${t('filter_all')}`;
     }
   };
 
@@ -97,12 +99,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             border: '1px solid rgba(230, 140, 25, 0.3)',
           }}
         >
-          📌 {t('filter_oneoff')}
+           {t('filter_oneoff')}
         </span>
       );
     }
     if (task.recurrenceType === 'custom_days' && task.daysOfWeek && task.daysOfWeek.length > 0) {
-      const daysLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const daysLabels = Array.from({length:7},(_,i)=>new Intl.DateTimeFormat(language==='auto'?undefined:language,{weekday:'short'}).format(new Date(2026,0,4+i)));
       const text = task.daysOfWeek.map((d) => daysLabels[d]).join(', ');
       return (
         <span
@@ -113,7 +115,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             border: '1px solid rgba(117, 91, 180, 0.3)',
           }}
         >
-          📅 {text}
+           {text}
         </span>
       );
     }
@@ -138,14 +140,14 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         <button
           className={`task-checkbox-btn ${isCompletedToday ? 'checked' : ''}`}
           onClick={(e) => onToggleComplete(task, e)}
-          aria-label={isCompletedToday ? `Mark ${task.title} incomplete` : `Mark ${task.title} complete`}
+          aria-label={isCompletedToday ? ui('Mark incomplete',language)+': '+task.title : ui('Mark complete',language)+': '+task.title}
           id={`task-check-${task.id}`}
         >
           {isCompletedToday && <IconRenderer name="Check" size={18} />}
         </button>
 
         {/* Category / Task Icon */}
-        <div className="task-icon-wrapper" title={task.category}>
+        <div className="task-icon-wrapper" title={task.category==='anytime'?ui('Anytime',language):t(('filter_'+task.category) as 'filter_morning')}>
           <IconRenderer name={task.iconName || 'CheckCircle2'} size={20} />
         </div>
 
@@ -160,7 +162,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <button
               type="button"
               onClick={handleReadAloud}
-              title="Read task aloud (Text-to-Speech)"
+              title={ui('Read aloud',language)}
               style={{
                 fontSize: '0.82rem',
                 opacity: isReadingAloud ? 1 : 0.65,
@@ -172,9 +174,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
                 background: 'none',
                 border: 'none',
               }}
-              aria-label="Read task aloud"
-            >
-              🔊
+              aria-label={ui('Read aloud',language)}
+            ><IconRenderer name="Volume2" size={15}/>
             </button>
           </div>
 
@@ -217,25 +218,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               onClick={() => setShowSubTasks(!showSubTasks)}
               className="task-subtasks-toggle-btn"
             >
-              🌱 {subTasksCompleted}/{totalSubTasks} {t('steps_label')} {showSubTasks ? '▲' : '▼'}
+               {subTasksCompleted}/{totalSubTasks} {t('steps_label')} {showSubTasks ? '▲' : '▼'}
             </button>
           ) : (
-            onBreakdownTask && (
-              <button
-                type="button"
-                onClick={() => onBreakdownTask(task)}
-                className="task-magic-breakdown-btn"
-                title="Overcome inertia: Break down into gentle micro-steps"
-              >
-                <IconRenderer name="Sparkles" size={13} />
-                <span>{t('break_down_step')}</span>
-              </button>
-            )
+            onSetSubTasks && <StepHelper title={task.title} description={task.description} language={language} existing={totalSubTasks} onApply={steps=>onSetSubTasks(task.id,steps)}/>
           )}
         </div>
 
         <div className="task-actions-right">
-          <div className="task-xp-badge" title={`Completing awards ${task.xpValue} XP`}>
+          <div className="task-xp-badge" title={`${task.xpValue} XP`}>
             +{task.xpValue} XP
           </div>
 
@@ -243,8 +234,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <button
               className="btn-icon"
               onClick={() => onFocusTask(task)}
-              title="Open in Focus Spotlight"
-              aria-label="Focus mode for this task"
+              title={ui('Start this action',language)}
+              aria-label={ui('Start this action',language)}
               style={{ color: 'var(--primary)' }}
             >
               <IconRenderer name="Target" size={15} />
@@ -254,8 +245,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           <button
             className="btn-icon"
             onClick={() => onEditTask(task)}
-            title="Edit task"
-            aria-label="Edit task"
+            title={ui('Task details',language)}
+            aria-label={ui('Task details',language)}
             id={`edit-task-${task.id}`}
           >
             <IconRenderer name="Edit2" size={14} />

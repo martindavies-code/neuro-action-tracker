@@ -52,18 +52,21 @@ export const getDateMinusDays = (daysAgo: number, baseDateStr?: string): string 
  * Accurately handles daily recurrence, custom days of week, and one-off lifecycle rules.
  */
 export function isTaskScheduledForToday(task: TaskItem, dateStr: string = getTodayDateString()): boolean {
-  if (!task || typeof task !== 'object' || task.archived) return false;
+  if (!task || typeof task !== 'object') return false;
+  if (task.archived && (!task.archivedAt || dateStr >= task.archivedAt)) return false;
+  const created = taskCreatedDate(task);
+  if (created && /^\d{4}-\d{2}-\d{2}$/.test(created) && dateStr < created) return false;
 
   // 1. One-off task rule:
   if (task.isOneOff || task.recurrenceType === 'one-off') {
     const completedDates = Array.isArray(task.completedDates) ? task.completedDates : [];
-    if (completedDates.length === 0) return true; // Never completed -> active
+    if (completedDates.length === 0 || dateStr < completedDates.slice().sort()[0]) return true; // Never completed -> active
     if (completedDates.includes(dateStr)) return true; // Completed on this date -> show so user can inspect/uncheck
     return false; // Completed on a past date -> done forever, hidden from active checklist
   }
 
   // 2. Custom days of week rule (0 = Sun, 1 = Mon ... 6 = Sat):
-  if (task.recurrenceType === 'custom_days' && Array.isArray(task.daysOfWeek) && task.daysOfWeek.length > 0) {
+  if (task.recurrenceType === 'custom_days' && Array.isArray(task.daysOfWeek)) {
     try {
       const parts = dateStr.split('-');
       if (parts.length === 3) {
@@ -227,6 +230,7 @@ export const DEFAULT_SETTINGS: SensorySettings = {
   dyslexicFont: false,
   bionicReading: false,
   readingRuler: false,
+  showXp: true, showStreaks: true, showQuotes: true, showCelebrations: true, profile: 'playful',
   theme: 'sage',
   celebrationIntensity: 'normal',
   compactView: false,
@@ -253,14 +257,14 @@ export function loadTasks(): TaskItem[] {
     if (typeof window === 'undefined' || !window.localStorage) return DEFAULT_TASKS;
     const raw = window.localStorage.getItem(STORAGE_KEYS.TASKS);
     if (!raw) {
-      saveTasks(DEFAULT_TASKS);
-      return DEFAULT_TASKS;
+      return [];
     }
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return DEFAULT_TASKS;
+    if (!Array.isArray(parsed)) throw new Error('Invalid tasks');
     return parsed.map((t, idx) => sanitizeImportedTask(t, idx));
   } catch {
-    return DEFAULT_TASKS;
+    try { const raw=window.localStorage.getItem(STORAGE_KEYS.TASKS);if(raw)window.localStorage.setItem('nat_corrupt_tasks_recovery',raw); } catch {}
+    storageFailure();return [];
   }
 }
 
@@ -269,7 +273,7 @@ export function saveTasks(tasks: TaskItem[]) {
     if (typeof window === 'undefined' || !window.localStorage) return;
     window.localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
   } catch {
-    // Graceful fallback
+    storageFailure();
   }
 }
 
@@ -292,7 +296,7 @@ export function saveSettings(settings: SensorySettings) {
     if (typeof window === 'undefined' || !window.localStorage) return;
     window.localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
   } catch {
-    // Graceful fallback
+    storageFailure();
   }
 }
 
@@ -315,7 +319,7 @@ export function saveStats(stats: UserStats) {
     if (typeof window === 'undefined' || !window.localStorage) return;
     window.localStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify(stats));
   } catch {
-    // Graceful fallback
+    storageFailure();
   }
 }
 
@@ -338,7 +342,7 @@ export function saveBadges(badges: Badge[]) {
     if (typeof window === 'undefined' || !window.localStorage) return;
     window.localStorage.setItem(STORAGE_KEYS.BADGES, JSON.stringify(badges));
   } catch {
-    // Graceful fallback
+    storageFailure();
   }
 }
 
@@ -356,24 +360,25 @@ export function setOnboardingCompleted(completed: boolean) {
     if (typeof window === 'undefined' || !window.localStorage) return;
     window.localStorage.setItem(STORAGE_KEYS.ONBOARDING_DONE, completed ? 'true' : 'false');
   } catch {
-    // Graceful fallback
+    storageFailure();
   }
 }
 
-export function getPast7DaysCompletion(tasks: TaskItem[]): DayCompletionRecord[] {
+export function getPast7DaysCompletion(tasks: TaskItem[], baseDateStr?: string, days = 7): DayCompletionRecord[] {
   const records: DayCompletionRecord[] = [];
-  const activeTasks = tasks.filter((t) => !t.archived);
+  const activeTasks = tasks;
 
-  for (let i = 6; i >= 0; i--) {
-    const dateStr = getDateMinusDays(i);
-    const scheduledForDate = activeTasks.filter((t) => isTaskScheduledForToday(t, dateStr));
-    const completed = activeTasks.filter((t) => Array.isArray(t.completedDates) && t.completedDates.includes(dateStr));
-    const xpEarned = completed.reduce((sum, t) => sum + (t.xpValue || 0), 0);
+  for (let i = days - 1; i >= 0; i--) {
+    const dateStr = getDateMinusDays(i,baseDateStr);
+    const snapshots=activeTasks.map(t=>({t,r:t.history?.find(r=>r.date===dateStr)}));
+    const xpEarned = snapshots.reduce((sum,{t,r})=>sum+(r?r.xpEarned:t.completedDates.includes(dateStr)?t.xpValue:0),0);
+    const totalAvailable=snapshots.reduce((sum,{t,r})=>sum+(r?r.totalAvailable:isTaskScheduledForToday(t,dateStr)||t.completedDates.includes(dateStr)?1:0),0);
+    const completedCount=snapshots.reduce((sum,{t,r})=>sum+(r?r.completedCount:t.completedDates.includes(dateStr)?1:0),0);
 
     records.push({
       date: dateStr,
-      completedCount: completed.length,
-      totalAvailable: Math.max(scheduledForDate.length, completed.length),
+      completedCount,
+      totalAvailable,
       xpEarned,
     });
   }
@@ -388,6 +393,7 @@ export function resetAllData() {
   window.localStorage.removeItem(STORAGE_KEYS.STATS);
   window.localStorage.removeItem(STORAGE_KEYS.BADGES);
   window.localStorage.removeItem(STORAGE_KEYS.ONBOARDING_DONE);
+  for(const key of Object.keys(window.localStorage))if(key.startsWith('nat_focus_')||['nat_recovery_backup_v1','nat_before_1_1_raw','nat_corrupt_tasks_recovery'].includes(key))window.localStorage.removeItem(key);
 }
 
 export function exportBackupJSON(): string {
@@ -397,7 +403,7 @@ export function exportBackupJSON(): string {
     stats: loadStats(),
     badges: loadBadges(),
     exportedAt: new Date().toISOString(),
-    version: '1.0.0',
+    version: '1.1.0',
   };
   return JSON.stringify(data, null, 2);
 }
@@ -420,6 +426,7 @@ export function sanitizeImportedTask(raw: unknown, idx: number = 0): TaskItem {
           id: cleanStr(item.id, `st_${idx}_${sIdx}_${Date.now()}`, 50),
           title: cleanStr(item.title, 'Step', 200),
           completed: Boolean(item.completed),
+          completedDates: Array.isArray(item.completedDates) ? item.completedDates.filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) : (item.completed ? [typeof t.updatedAt==='string'?t.updatedAt.slice(0,10):getTodayDateString()] : []),
         };
       })
     : [];
@@ -446,7 +453,7 @@ export function sanitizeImportedTask(raw: unknown, idx: number = 0): TaskItem {
     description: cleanStr(t.description, '', 2000),
     category: validCategories.includes(t.category as any) ? (t.category as any) : 'morning',
     priority: validPriorities.includes(t.priority as any) ? (t.priority as any) : 'medium',
-    xpValue: cleanNum(t.xpValue, 5, 25, 15),
+    xpValue: t.xpValue===0?0:cleanNum(t.xpValue, 5, 25, 15),
     estimatedMinutes: cleanNum(t.estimatedMinutes, 1, 1440, 5),
     iconName: cleanStr(t.iconName, 'Sparkles', 50),
     completedDates: sanitizedDates,
@@ -454,6 +461,8 @@ export function sanitizeImportedTask(raw: unknown, idx: number = 0): TaskItem {
     order: cleanNum(t.order, 0, 10000, idx + 1),
     isDefault: Boolean(t.isDefault),
     archived: Boolean(t.archived),
+    archivedAt: typeof t.archivedAt === 'string' ? t.archivedAt.slice(0,10) : undefined,
+    history: Array.isArray(t.history) ? t.history.filter((x): x is DayCompletionRecord => Boolean(x && typeof x === 'object' && typeof x.date === 'string' && Number.isFinite(x.totalAvailable) && Number.isFinite(x.xpEarned) && Number.isFinite(x.completedCount))).slice(-36600) : [],
     subTasks: sanitizedSubTasks,
     recurrenceType,
     daysOfWeek,
@@ -465,8 +474,8 @@ export function sanitizeImportedSettings(raw: unknown): SensorySettings {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return DEFAULT_SETTINGS;
   const s = raw as Record<string, unknown>;
   const validThemes = ['sage', 'sunset', 'slate', 'high-contrast'] as const;
-  const validLangs = ['auto', 'en', 'es', 'fr', 'de', 'ja', 'pt', 'zh', 'it', 'nl'] as const;
-  const validBatteries = ['full', 'half', 'empty'] as const;
+  const validLangs = ['auto', 'en', 'es', 'fr', 'de', 'ja', 'pt', 'zh', 'it', 'ko'] as const;
+  const validBatteries = ['full', 'moderate', 'low'] as const;
   const validCompanions = ['pip', 'mochi', 'nova', 'bubbles'] as const;
 
   return {
@@ -476,15 +485,13 @@ export function sanitizeImportedSettings(raw: unknown): SensorySettings {
       typeof s.soundVolume === 'number' && Number.isFinite(s.soundVolume)
         ? Math.max(0, Math.min(1, s.soundVolume))
         : DEFAULT_SETTINGS.soundVolume,
-    soundPack: ['chimes', 'bamboo', 'cyber', 'lofi'].includes(s.soundPack as string)
-      ? (s.soundPack as any)
-      : DEFAULT_SETTINGS.soundPack,
+    soundPack: 'chimes',
     reducedMotion: typeof s.reducedMotion === 'boolean' ? s.reducedMotion : DEFAULT_SETTINGS.reducedMotion,
     dyslexicFont: typeof s.dyslexicFont === 'boolean' ? s.dyslexicFont : DEFAULT_SETTINGS.dyslexicFont,
     bionicReading: typeof s.bionicReading === 'boolean' ? s.bionicReading : DEFAULT_SETTINGS.bionicReading,
     readingRuler: typeof s.readingRuler === 'boolean' ? s.readingRuler : DEFAULT_SETTINGS.readingRuler,
     theme: validThemes.includes(s.theme as any) ? (s.theme as any) : DEFAULT_SETTINGS.theme,
-    celebrationIntensity: ['gentle', 'normal', 'festive'].includes(s.celebrationIntensity as string)
+    celebrationIntensity: ['gentle', 'normal', 'vibrant'].includes(s.celebrationIntensity as string)
       ? (s.celebrationIntensity as any)
       : DEFAULT_SETTINGS.celebrationIntensity,
     compactView: typeof s.compactView === 'boolean' ? s.compactView : DEFAULT_SETTINGS.compactView,
@@ -492,6 +499,9 @@ export function sanitizeImportedSettings(raw: unknown): SensorySettings {
     companionChoice: validCompanions.includes(s.companionChoice as any)
       ? (s.companionChoice as any)
       : DEFAULT_SETTINGS.companionChoice,
+    profile: ['quiet','playful','custom'].includes(String(s.profile)) ? s.profile as SensorySettings['profile'] : 'custom',
+    showXp: s.showXp !== false, showStreaks: s.showStreaks !== false, showQuotes: s.showQuotes !== false, showCelebrations: s.showCelebrations !== false,
+    energyCheckedDate: typeof s.energyCheckedDate === 'string' ? s.energyCheckedDate.slice(0,10) : '',
     energyBattery: validBatteries.includes(s.energyBattery as any)
       ? (s.energyBattery as any)
       : DEFAULT_SETTINGS.energyBattery,
@@ -513,6 +523,8 @@ export function sanitizeImportedStats(raw: unknown): UserStats {
     streakShields: cleanNum(s.streakShields, 0, 10, DEFAULT_STATS.streakShields),
     totalCompletions: cleanNum(s.totalCompletions, 0, 1000000, DEFAULT_STATS.totalCompletions),
     lastActiveDate: typeof s.lastActiveDate === 'string' && s.lastActiveDate.length <= 20 ? s.lastActiveDate : '',
+    protectedDates: Array.isArray(s.protectedDates) ? s.protectedDates.filter((d): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(-3660) : [],
+    shieldCheckedDate: typeof s.shieldCheckedDate === 'string' ? s.shieldCheckedDate.slice(0,10) : '',
     tutorialXpAwarded: typeof s.tutorialXpAwarded === 'boolean' ? s.tutorialXpAwarded : DEFAULT_STATS.tutorialXpAwarded,
   };
 }
@@ -535,23 +547,79 @@ export function importBackupJSON(jsonStr: string): boolean {
     if (!jsonStr || typeof jsonStr !== 'string') return false;
     const data = JSON.parse(jsonStr);
     if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+    previewBackup(jsonStr);
+    const old = typeof window !== 'undefined' ? [STORAGE_KEYS.TASKS,STORAGE_KEYS.SETTINGS,STORAGE_KEYS.STATS,STORAGE_KEYS.BADGES].map(k=>[k,window.localStorage.getItem(k)] as const) : [];
+    try {
+      if(typeof window !== 'undefined') window.localStorage.setItem('nat_recovery_backup_v1', exportBackupJSON());
 
     if (data.tasks && Array.isArray(data.tasks)) {
       const sanitizedTasks: TaskItem[] = data.tasks.map(sanitizeImportedTask);
-      saveTasks(sanitizedTasks);
+      if(typeof window !== 'undefined') window.localStorage.setItem(STORAGE_KEYS.TASKS,JSON.stringify(sanitizedTasks));
     }
     if (data.settings && typeof data.settings === 'object' && !Array.isArray(data.settings)) {
-      saveSettings(sanitizeImportedSettings(data.settings));
+      if(typeof window !== 'undefined') window.localStorage.setItem(STORAGE_KEYS.SETTINGS,JSON.stringify(sanitizeImportedSettings(data.settings)));
     }
     if (data.stats && typeof data.stats === 'object' && !Array.isArray(data.stats)) {
-      saveStats(sanitizeImportedStats(data.stats));
+      if(typeof window !== 'undefined') window.localStorage.setItem(STORAGE_KEYS.STATS,JSON.stringify(sanitizeImportedStats(data.stats)));
     }
     if (data.badges && Array.isArray(data.badges)) {
-      saveBadges(sanitizeImportedBadges(data.badges));
+      if(typeof window !== 'undefined') window.localStorage.setItem(STORAGE_KEYS.BADGES,JSON.stringify(sanitizeImportedBadges(data.badges)));
     }
     return true;
+    } catch(error) { for(const [k,v] of old) { if(v===null) window.localStorage.removeItem(k); else window.localStorage.setItem(k,v); } throw error; }
   } catch (e) {
     console.error('Import failed', e);
     return false;
   }
+}
+
+export function storageFailure(){
+  if (typeof window !== 'undefined') { (window as any).__rhythmStorageFailed=true;window.dispatchEvent(new CustomEvent('rhythm-storage-error')); }
+}
+export function saveSafetyBackup(): boolean {
+  try {
+    if(typeof window === 'undefined') return true;
+    window.localStorage.setItem('nat_recovery_backup_v1', exportBackupJSON());
+    return true;
+  } catch { storageFailure(); return false; }
+}
+export function restoreSafetyBackup(): boolean {
+  if(typeof window === 'undefined') return false;
+  const raw=window.localStorage.getItem('nat_recovery_backup_v1');
+  return raw ? importBackupJSON(raw) : false;
+}
+export function previewBackup(json: string): {tasks:number; version:string} {
+  if(json.length>5000000) throw new Error('Backup exceeds 5 MB');
+  const d=JSON.parse(json);
+  if(!d || typeof d!=='object' || !Array.isArray(d.tasks) || d.tasks.length>10000 || !d.tasks.every((t: unknown)=>t && typeof t==='object' && typeof (t as TaskItem).title==='string')) throw new Error('A backup must contain a valid tasks array');
+  for(const key of ['settings','stats'])if(d[key]!==undefined&&(!d[key]||typeof d[key]!=='object'||Array.isArray(d[key])))throw new Error('Invalid '+key);
+  if(d.badges!==undefined&&!Array.isArray(d.badges))throw new Error('Invalid badges');
+  return {tasks:d.tasks.length,version:typeof d.version==='string'?d.version:'legacy'};
+}
+
+export function matchesEnergy(task:TaskItem,energy:SensorySettings['energyBattery']){return energy==='low'?(task.estimatedMinutes||5)<=5&&task.priority!=='high':energy==='moderate'?(task.estimatedMinutes||5)<=15:true;}
+
+/** Freeze every elapsed day before changing a schedule or reward. Old snapshots win. */
+export function preserveTaskHistory(task:TaskItem,today=getTodayDateString()):DayCompletionRecord[]{
+ const start=taskCreatedDate(task)||today;
+ const a=new Date(start+'T12:00:00'), b=new Date(today+'T12:00:00');
+ const days=Math.max(1,Math.min(36600,Math.ceil((b.getTime()-a.getTime())/86400000)+1));
+ const history=new Map((task.history||[]).map(r=>[r.date,r]));
+ for(const r of getPast7DaysCompletion([task],today,days)) if(r.date<today&&!history.has(r.date)) history.set(r.date,r);
+ return [...history.values()].sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+/** Keep the exact pre-upgrade bytes, including records that cannot be parsed. */
+export function prepareUpgradeRecovery(){
+ if(typeof window==='undefined')return;
+ try{if(!localStorage.getItem('nat_before_1_1_raw')){
+ const snapshot=Object.fromEntries(Object.values(STORAGE_KEYS).map(k=>[k,localStorage.getItem(k)]));
+ localStorage.setItem('nat_before_1_1_raw',JSON.stringify(snapshot));
+ }}catch{storageFailure()}
+}
+
+export function taskCreatedDate(task:TaskItem):string{
+ if(!task.createdAt)return '';
+ const date=new Date(task.createdAt);
+ return Number.isNaN(date.getTime())?'':getTodayDateString(date);
 }

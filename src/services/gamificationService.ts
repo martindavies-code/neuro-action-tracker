@@ -22,48 +22,48 @@ export const COMPANION_DEFINITIONS: Record<CompanionChoice, CompanionMetadata> =
     id: 'pip',
     name: 'Pip the Sproutling',
     species: 'Sprout',
-    defaultEmoji: '🌱',
+    defaultEmoji: '•',
     description: 'Gentle Growth • Evolves from Seedling to Blossom',
     stages: [
-      { minLevel: 5, title: 'Radiant Blossom', emoji: '🌸', badgeLabel: 'Radiant Blossom 🌸' },
-      { minLevel: 3, title: 'Growing Sproutling', emoji: '🌱', badgeLabel: 'Growing Sprout 🌱' },
-      { minLevel: 1, title: 'Seedling', emoji: '🌰', badgeLabel: 'Seedling Seed 🌰' },
+      { minLevel: 5, title: 'Radiant Blossom', emoji: '•', badgeLabel: 'Radiant Blossom ' },
+      { minLevel: 3, title: 'Growing Sproutling', emoji: '•', badgeLabel: 'Growing Sprout ' },
+      { minLevel: 1, title: 'Seedling', emoji: '•', badgeLabel: 'Seedling Seed ' },
     ],
   },
   mochi: {
     id: 'mochi',
     name: 'Mochi the Fox',
     species: 'Fox',
-    defaultEmoji: '🦊',
+    defaultEmoji: '•',
     description: 'Playful Focus • Evolves to Forest Spirit',
     stages: [
-      { minLevel: 5, title: 'Forest Spirit', emoji: '🦊✨', badgeLabel: 'Forest Spirit 🦊✨' },
-      { minLevel: 3, title: 'Playful Fox', emoji: '🦊', badgeLabel: 'Playful Fox 🐾' },
-      { minLevel: 1, title: 'Baby Kit', emoji: '🐾', badgeLabel: 'Baby Kit 🐾' },
+      { minLevel: 5, title: 'Forest Spirit', emoji: '•', badgeLabel: 'Forest Spirit ' },
+      { minLevel: 3, title: 'Playful Fox', emoji: '•', badgeLabel: 'Playful Fox ' },
+      { minLevel: 1, title: 'Baby Kit', emoji: '•', badgeLabel: 'Baby Kit ' },
     ],
   },
   nova: {
     id: 'nova',
     name: 'Nova the Cosmic Cat',
     species: 'Cat',
-    defaultEmoji: '🐱',
+    defaultEmoji: '•',
     description: 'Quiet Wonder • Evolves to Starlight Guardian',
     stages: [
-      { minLevel: 5, title: 'Starlight Guardian', emoji: '🐱✨', badgeLabel: 'Starlight Guardian 🌌' },
-      { minLevel: 3, title: 'Cosmic Explorer', emoji: '🐱', badgeLabel: 'Cosmic Explorer 🐱' },
-      { minLevel: 1, title: 'Little Kitten', emoji: '🐈', badgeLabel: 'Little Kitten 🐈' },
+      { minLevel: 5, title: 'Starlight Guardian', emoji: '•', badgeLabel: 'Starlight Guardian ' },
+      { minLevel: 3, title: 'Cosmic Explorer', emoji: '•', badgeLabel: 'Cosmic Explorer ' },
+      { minLevel: 1, title: 'Little Kitten', emoji: '•', badgeLabel: 'Little Kitten ' },
     ],
   },
   bubbles: {
     id: 'bubbles',
     name: 'Bubbles the Calm Turtle',
     species: 'Turtle',
-    defaultEmoji: '🐢',
+    defaultEmoji: '•',
     description: 'Calm & Steady • Evolves to Ancient Sage',
     stages: [
-      { minLevel: 5, title: 'Ancient Sage', emoji: '🐢🌊', badgeLabel: 'Ancient Sage 🌊' },
-      { minLevel: 3, title: 'Calm Swimmer', emoji: '🐢', badgeLabel: 'Calm Swimmer 🐢' },
-      { minLevel: 1, title: 'Tiny Hatchling', emoji: '🫧', badgeLabel: 'Tiny Hatchling 🫧' },
+      { minLevel: 5, title: 'Ancient Sage', emoji: '•', badgeLabel: 'Ancient Sage ' },
+      { minLevel: 3, title: 'Calm Swimmer', emoji: '•', badgeLabel: 'Calm Swimmer ' },
+      { minLevel: 1, title: 'Tiny Hatchling', emoji: '•', badgeLabel: 'Tiny Hatchling ' },
     ],
   },
 };
@@ -195,12 +195,13 @@ export function getLevelInfo(xp: number) {
  * Calculates current streak dynamically based on actual task completion history.
  * Highly optimized with Set-based O(1) date lookups.
  */
-export function calculateStreakFromTasks(tasks: TaskItem[], todayStr: string): number {
+export function calculateStreakFromTasks(tasks: TaskItem[], todayStr: string, protectedDates: string[] = []): number {
   if (!Array.isArray(tasks) || tasks.length === 0) return 0;
-  const activeTasks = tasks.filter((t) => t && !t.archived);
+  const activeTasks = tasks.filter((t) => t);
+  const protectedSet = new Set(protectedDates);
   if (activeTasks.length === 0) return 0;
 
-  const completedDatesSet = new Set<string>();
+  const completedDatesSet = new Set<string>(protectedSet);
   for (const t of activeTasks) {
     if (Array.isArray(t.completedDates)) {
       for (const d of t.completedDates) {
@@ -255,45 +256,21 @@ export function calculateDailyStreak(
     streakShields: Number.isFinite(prevStats?.streakShields) ? Math.max(0, prevStats.streakShields) : 0,
   };
 
-  const yesterdayStr = getDateMinusDays(1, todayStr);
-  const twoDaysAgoStr = getDateMinusDays(2, todayStr);
-
-  let currentStreak = safePrev.currentStreak;
-  let streakShields = safePrev.streakShields;
-  let shieldUsed = false;
-
-  if (!prevStats.lastActiveDate || prevStats.lastActiveDate === todayStr) {
-    // New user or already active today
-    return { updatedStats: prevStats, shieldUsed: false, usedShield: false };
+  const protectedDates = [...(prevStats.protectedDates || [])];
+  if (safePrev.shieldCheckedDate === todayStr || !prevStats.lastActiveDate || prevStats.lastActiveDate >= todayStr) {
+    return {updatedStats:{...safePrev, protectedDates, shieldCheckedDate:todayStr},shieldUsed:false,usedShield:false};
   }
-
-  if (prevStats.lastActiveDate === yesterdayStr) {
-    // Yesterday was active - streak is continuous
-  } else if (prevStats.lastActiveDate === twoDaysAgoStr) {
-    // Missed yesterday! Check for streak shield protection
-    if (streakShields > 0) {
-      streakShields -= 1;
-      shieldUsed = true;
-    } else {
-      currentStreak = 0;
-    }
-  } else if (prevStats.lastActiveDate && prevStats.lastActiveDate < twoDaysAgoStr) {
-    // Inactive for multiple days
-    currentStreak = 0;
+  let shields=safePrev.streakShields;
+  let streak=safePrev.currentStreak;
+  let used=false;
+  // Evaluate only fully missed days, never today. Dates are local calendar days.
+  const start=prevStats.shieldCheckedDate && prevStats.shieldCheckedDate > prevStats.lastActiveDate ? prevStats.shieldCheckedDate : getDateMinusDays(-1,prevStats.lastActiveDate);
+  let day=start;
+  for(let n=0; day<todayStr && n<3660; n++, day=getDateMinusDays(-1,day)) {
+    if(day<=prevStats.lastActiveDate || protectedDates.includes(day)) continue;
+    if(shields>0 && streak>0) {shields--; protectedDates.push(day);used=true;} else {streak=0;break;}
   }
-
-  const longestStreak = Math.max(prevStats.longestStreak, currentStreak);
-
-  return {
-    updatedStats: {
-      ...prevStats,
-      currentStreak,
-      longestStreak,
-      streakShields,
-    },
-    shieldUsed,
-    usedShield: shieldUsed,
-  };
+  return {updatedStats:{...safePrev,currentStreak:streak,streakShields:shields,protectedDates,shieldCheckedDate:todayStr},shieldUsed:used,usedShield:used};
 }
 
 export function checkNewBadges(
