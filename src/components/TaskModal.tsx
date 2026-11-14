@@ -173,7 +173,7 @@ const TaskForm: React.FC<{
               value={manualStepText}
               onChange={(e) => setManualStepText(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229) {
                   e.preventDefault();
                   if (manualStepText.trim()) {
                     setSubTasks([...subTasks, { id: 'st_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5), title: manualStepText.trim(), completed: false }]);
